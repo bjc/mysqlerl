@@ -18,10 +18,11 @@ start_link(Owner, Host, Port, Database, User, Password, Options) ->
                                     User, Password, Options], []).
 
 stop(Pid) ->
-    gen_server:cast(Pid, stop).
+    gen_server:call(Pid, stop).
 
 init([Owner, Host, Port, Database, User, Password, Options]) ->
     process_flag(trap_exit, true),
+    link(Owner),
     Cmd = lists:flatten(io_lib:format("~s ~s ~w ~s ~s ~s ~s",
                                       [helper(), Host, Port, Database,
                                        User, Password, Options])),
@@ -40,13 +41,26 @@ terminate(Reason, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
+handle_call(Request, From, #state{owner = Owner} = State)
+  when Owner /= element(1, From) ->
+    error_logger:warning_msg("Request from ~p (owner: ~p): ~p",
+                             [element(1, From), Owner, Request]),
+    {reply, {error, process_not_owner_of_odbc_connection}, State};
+handle_call(stop, _From, State) ->
+    {stop, normal, State};
 handle_call(Request, _From, State) ->
     {reply, make_request(State#state.ref, Request), State}.
 
-handle_cast(stop, State) ->
-    {stop, normal, State}.
+handle_cast(_Request, State) ->
+    {noreply, State}.
 
-handle_info({'EXIT', _Ref, Reason}, State) ->
+handle_info({'EXIT', Pid, _Reason}, State)
+  when Pid == State#state.owner ->
+    io:format("DEBUG: owner ~p shut down.~n", [Pid]),
+    {stop, normal, State};
+handle_info({'EXIT', Ref, Reason}, State)
+  when Ref == State#state.ref ->
+    io:format("DEBUG: Port ~p closed on ~p.~n", [Ref, State]),
     {stop, #port_closed{reason = Reason}, State}.
 
 helper() ->
