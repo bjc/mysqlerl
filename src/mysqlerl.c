@@ -15,6 +15,7 @@
 const char *QUERY_MSG = "sql_query";
 const char *PARAM_QUERY_MSG = "sql_param_query";
 const char *SELECT_COUNT_MSG = "sql_select_count";
+const char *NEXT_MSG = "sql_next";
 
 MYSQL_RES *results = NULL;
 
@@ -231,6 +232,34 @@ handle_select_count(MYSQL *dbh, ETERM *msg)
 }
 
 void
+handle_next(MYSQL *dbh, ETERM *msg)
+{
+  MYSQL_FIELD *fields;
+  ETERM *ecols, *erows, *resp;
+  unsigned int num_fields;
+
+  logmsg("DEBUG: got next msg.");
+  if (results == NULL) {
+    logmsg("ERROR: got next message w/o cursor.");
+    exit(2);
+  }
+
+  num_fields = mysql_num_fields(results);
+  fields     = mysql_fetch_fields(results);
+
+  ecols = make_cols(fields, num_fields);
+  erows = make_rows(1, num_fields);
+
+  resp = erl_format("{selected, ~w, ~w}", ecols, erows);
+
+  erl_free_term(ecols);
+  erl_free_term(erows);
+
+  write_msg(resp);
+  erl_free_term(resp);
+}
+
+void
 dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
 {
   ETERM *tag;
@@ -245,6 +274,9 @@ dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      SELECT_COUNT_MSG, strlen(SELECT_COUNT_MSG)) == 0) {
     handle_select_count(dbh, msg);
+  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
+                     NEXT_MSG, strlen(NEXT_MSG)) == 0) {
+    handle_next(dbh, msg);
   } else {
     logmsg("WARNING: message type %s unknown.", (char *)ERL_ATOM_PTR(tag));
     erl_free_term(tag);
