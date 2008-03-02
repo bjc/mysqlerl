@@ -10,7 +10,7 @@ PRIVDIR =	../priv
 BEAMDIR =	../ebin
 
 BINS =		$(PRIVDIR)/mysqlerl $(BEAMDIR)/mysqlerl.app
-MYSQLERLOBJS =	io.o log.o mysqlerl.o
+MYSQLERLOBJS =	io.o log.o msg.o mysqlerl.o
 BEAMS =		mysqlerl.beam mysqlerl_app.beam mysqlerl_connection.beam \
 		mysqlerl_connection_sup.beam
 LIBS =		-lmysqlclient

@@ -6,93 +6,18 @@
 
 #include "io.h"
 #include "log.h"
+#include "msg.h"
 
-#include <erl_interface.h>
-#include <ei.h>
 #include <mysql.h>
-
-#include <errno.h>
-#include <stdlib.h>
 #include <string.h>
 
 const char *QUERY_MSG = "sql_query";
-
-typedef u_int32_t msglen_t;
-
-struct msg {
-  ETERM *cmd;
-  unsigned char *buf;
-};
-typedef struct msg msg_t;
-
-msg_t *
-read_msg()
-{
-  msg_t *msg;
-  msglen_t len;
-
-  msg = (msg_t *)malloc(sizeof(msg_t));
-  if (msg == NULL) {
-    logmsg("ERROR: Couldn't allocate message for reading: %s.\n",
-           strerror(errno));
-
-    exit(2);
-  }
-
-  logmsg("DEBUG: reading message length.");
-  if (restartable_read((unsigned char *)&len, sizeof(len)) == -1) {
-    logmsg("ERROR: couldn't read %d byte message prefix: %s.",
-           sizeof(len), strerror(errno));
-
-    free(msg);
-    exit(2);
-  }
-
-  len = ntohl(len);
-  msg->buf = malloc(len);
-  if (msg->buf == NULL) {
-    logmsg("ERROR: Couldn't malloc %d bytes: %s.", len,
-           strerror(errno));
-
-    free(msg);
-    exit(2);
-  }
-
-  logmsg("DEBUG: reading message body (len: %d).", len);
-  if (restartable_read(msg->buf, len) == -1) {
-    logmsg("ERROR: couldn't read %d byte message: %s.",
-           len, strerror(errno));
-
-    free(msg->buf);
-    free(msg);
-    exit(2);
-  }
-
-  msg->cmd = erl_decode(msg->buf);
-
-  return msg;
-}
-
-int
-write_cmd(const char *cmd, msglen_t len)
-{
-  msglen_t nlen;
-
-  nlen = htonl(len);
-  if (restartable_write((unsigned char *)&nlen, sizeof(nlen)) == -1)
-    return -1;
-  if (restartable_write((unsigned char *)cmd, len) == -1)
-    return -1;
-
-  return 0;
-}
 
 void
 handle_sql_query(MYSQL *dbh, ETERM *cmd)
 {
   ETERM *query, *resp;
-  char *q, *buf;
-  int buflen;
+  char *q;
 
   query = erl_element(2, cmd);
   q = erl_iolist_to_string(query);
@@ -182,23 +107,19 @@ handle_sql_query(MYSQL *dbh, ETERM *cmd)
   erl_free(q);
 
   logmsg("DEBUG: prepping buffers and sending.");
-  buflen = erl_term_len(resp);
-  buf = (char *)malloc(buflen);
-  erl_encode(resp, (unsigned char *)buf);
+  write_msg(resp);
   erl_free_term(resp);
-  write_cmd(buf, buflen);
-  free(buf);
 }
 
 void
-dispatch_db_cmd(MYSQL *dbh, msg_t *msg)
+dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
 {
   ETERM *tag;
 
-  tag = erl_element(1, msg->cmd);
+  tag = erl_element(1, msg);
   if (strncmp((char *)ERL_ATOM_PTR(tag),
               QUERY_MSG, strlen(QUERY_MSG)) == 0) {
-    handle_sql_query(dbh, msg->cmd);
+    handle_sql_query(dbh, msg);
   } else {
     logmsg("WARNING: message type %s unknown.", (char *)ERL_ATOM_PTR(tag));
     erl_free_term(tag);
@@ -220,7 +141,7 @@ main(int argc, char *argv[])
 {
   MYSQL dbh;
   char *host, *port, *db_name, *user, *passwd;
-  msg_t *msg;
+  ETERM *msg;
 
   openlog();
   logmsg("INFO: starting up.");
@@ -246,11 +167,7 @@ main(int argc, char *argv[])
 
   while ((msg = read_msg()) != NULL) {
     dispatch_db_cmd(&dbh, msg);
-
-    /* XXX: Move this to function */
-    erl_free_compound(msg->cmd);
-    free(msg->buf);
-    free(msg);
+    erl_free_term(msg);
   }
 
   mysql_close(&dbh);
