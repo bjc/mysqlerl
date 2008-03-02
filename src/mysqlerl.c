@@ -169,7 +169,6 @@ handle_query(MYSQL *dbh, ETERM *cmd)
   }
   erl_free(q);
 
-  logmsg("DEBUG: prepping buffers and sending.");
   write_msg(resp);
   erl_free_term(resp);
 }
@@ -194,7 +193,7 @@ handle_param_query(MYSQL *dbh, ETERM *msg)
 void
 handle_select_count(MYSQL *dbh, ETERM *msg)
 {
-  ETERM *query;
+  ETERM *query, *resp;
   char *q;
 
   query = erl_element(2, msg);
@@ -202,8 +201,28 @@ handle_select_count(MYSQL *dbh, ETERM *msg)
   erl_free_term(query);
 
   logmsg("DEBUG: got select count msg: %s.", q);
+  if (mysql_query(dbh, q)) {
+    resp = erl_format("{error, {mysql_error, ~i, ~s}}",
+                      mysql_errno(dbh), mysql_error(dbh));
+  } else {
+    MYSQL_RES *result;
 
+    result = mysql_store_result(dbh);
+    if (result) {
+      resp = erl_format("{ok, ~i}", mysql_num_rows(result));
+      mysql_free_result(result);
+    } else {
+      if (mysql_field_count(dbh) == 0)
+        resp = erl_format("{ok, ~i}", mysql_affected_rows(dbh));
+      else
+        resp = erl_format("{error, {mysql_error, ~i, ~s}}",
+                          mysql_errno(dbh), mysql_error(dbh));
+    }
+  }
   erl_free(q);
+
+  write_msg(resp);
+  erl_free_term(resp);
 }
 
 void
