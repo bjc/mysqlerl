@@ -8,6 +8,7 @@
 #include "log.h"
 #include "msg.h"
 
+#include <errno.h>
 #include <mysql.h>
 #include <string.h>
 
@@ -21,64 +22,115 @@ usage()
 }
 
 ETERM *
-handle_mysql_result(MYSQL_RES *result)
+make_cols(MYSQL_FIELD *fields, unsigned int num_fields)
 {
-  MYSQL_FIELD *fields;
-  unsigned int i, num_fields, num_rows;
-  ETERM **cols, *ecols, **rows, *erows, *resp;
-
-  num_fields = mysql_num_fields(result);
-  fields = mysql_fetch_fields(result);
+  ETERM **cols, *rc;
+  unsigned int i;
 
   cols = (ETERM **)malloc(num_fields * sizeof(ETERM *));
-  for (i = 0; i < num_fields; i++) {
-    logmsg("DEBUG: cols[%d]: %s", i, fields[i].name);
+  if (cols == NULL) {
+    logmsg("ERROR: Couldn't allocate %d bytes for columns: %s",
+           strerror(errno));
+    exit(3);
+  }
+
+  for (i = 0; i < num_fields; i++)
     cols[i] = erl_mk_string(fields[i].name);
-  }
-  ecols = erl_mk_list(cols, num_fields);
 
-  num_rows = mysql_num_rows(result);
-  rows = (ETERM **)malloc(num_rows * sizeof(ETERM *));
-  for (i = 0; i < num_rows; i++) {
-    ETERM **rowtup, *rt;
-    unsigned long *lengths;
-    MYSQL_ROW row;
-    unsigned int j;
-
-    row = mysql_fetch_row(result);
-    lengths = mysql_fetch_lengths(result);
-
-    rowtup = (ETERM **)malloc(num_fields * sizeof(ETERM *));
-    for (j = 0; j < num_fields; j++) {
-      if (row[j])
-        rowtup[j] = erl_mk_estring(row[j], lengths[j]);
-      else
-        rowtup[j] = erl_mk_atom("NULL");
-    }
-    rt = erl_mk_tuple(rowtup, num_fields);
-    if (rt == NULL) {
-      logmsg("ERROR: couldn't allocate %d-tuple", num_fields);
-      exit(3);
-    }
-    rows[i] = erl_format("~w", rt);
-
-    for (j = 0; j < num_fields; j++)
-      erl_free_term(rowtup[j]);
-    free(rowtup);
-    erl_free_term(rt);
-  }
-  erows = erl_mk_list(rows, num_rows);
-
-  resp = erl_format("{selected, ~w, ~w}", ecols, erows);
+  rc = erl_mk_list(cols, num_fields);
 
   for (i = 0; i < num_fields; i++)
     erl_free_term(cols[i]);
   free(cols);
-  erl_free_term(ecols);
+
+  return rc;
+}
+
+ETERM *
+make_row(MYSQL_ROW row, unsigned long *lengths, unsigned int num_fields)
+{
+  ETERM **rowtup, *rc;
+  unsigned int i;
+
+  rowtup = (ETERM **)malloc(num_fields * sizeof(ETERM *));
+  if (rowtup == NULL) {
+    logmsg("ERROR: Couldn't allocate %d bytes for row: %s",
+           strerror(errno));
+    exit(3);
+  }
+
+  for (i = 0; i < num_fields; i++) {
+    if (row[i])
+      rowtup[i] = erl_mk_estring(row[i], lengths[i]);
+    else
+      rowtup[i] = erl_mk_atom("NULL");
+  }
+
+  rc = erl_mk_tuple(rowtup, num_fields);
+  if (rc == NULL) {
+    logmsg("ERROR: couldn't allocate %d-tuple", num_fields);
+    exit(3);
+  }
+
+  for (i = 0; i < num_fields; i++)
+    erl_free_term(rowtup[i]);
+  free(rowtup);
+
+  return rc;
+}
+
+ETERM *
+make_rows(MYSQL_RES *result, unsigned int num_rows, unsigned int num_fields)
+{
+  ETERM **rows, *rc;
+  unsigned int i;
+
+  rows = (ETERM **)malloc(num_rows * sizeof(ETERM *));
+  if (rows == NULL) {
+    logmsg("ERROR: Couldn't allocate %d bytes for rows: %s",
+           strerror(errno));
+    exit(3);
+  }
+
+  for (i = 0; i < num_rows; i++) {
+    ETERM *rt;
+    unsigned long *lengths;
+    MYSQL_ROW row;
+
+    row = mysql_fetch_row(result);
+    lengths = mysql_fetch_lengths(result);
+
+    rt = make_row(row, lengths, num_fields);
+    rows[i] = erl_format("~w", rt);
+    erl_free_term(rt);
+  }
+
+  rc = erl_mk_list(rows, num_rows);
 
   for (i = 0; i < num_rows; i++)
     erl_free_term(rows[i]);
   free(rows);
+
+  return rc;
+}
+
+ETERM *
+handle_mysql_result(MYSQL_RES *result)
+{
+  MYSQL_FIELD *fields;
+  ETERM *ecols, *erows, *resp;
+  unsigned int num_fields, num_rows;
+
+  num_fields = mysql_num_fields(result);
+  fields     = mysql_fetch_fields(result);
+  num_rows   = mysql_num_rows(result);
+
+  ecols = make_cols(fields, num_fields);
+  erows = make_rows(result, num_rows, num_fields);
+
+  resp = erl_format("{selected, ~w, ~w}", ecols, erows);
+
+  erl_free_term(ecols);
   erl_free_term(erows);
 
   return resp;
