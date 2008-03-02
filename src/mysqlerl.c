@@ -18,6 +18,7 @@ const char *SELECT_COUNT_MSG = "sql_select_count";
 const char *NEXT_MSG = "sql_next";
 
 MYSQL_RES *results = NULL;
+my_ulonglong resultoffset = 0;
 
 void
 usage()
@@ -32,6 +33,7 @@ set_mysql_results(MYSQL_RES *res)
   if (results)
     mysql_free_result(results);
   results = res;
+  resultoffset = 0;
 }
 
 ETERM *
@@ -248,13 +250,16 @@ handle_next(MYSQL *dbh, ETERM *msg)
   fields     = mysql_fetch_fields(results);
 
   ecols = make_cols(fields, num_fields);
-  erows = make_rows(1, num_fields);
-
-  resp = erl_format("{selected, ~w, ~w}", ecols, erows);
+  if (resultoffset == mysql_num_rows(results)) {
+    resp = erl_format("{selected, ~w, []}", ecols);
+  } else {
+    erows = make_rows(1, num_fields);
+    resp = erl_format("{selected, ~w, ~w}", ecols, erows);
+    erl_free_term(erows);
+    resultoffset++;
+  }
 
   erl_free_term(ecols);
-  erl_free_term(erows);
-
   write_msg(resp);
   erl_free_term(resp);
 }
