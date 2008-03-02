@@ -5,28 +5,28 @@
 
 -behavior(gen_server).
 
--export([start_link/6, stop/1]).
+-export([start_link/7, stop/1]).
 
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
 
--record(state, {ref}).
+-record(state, {ref, owner}).
 -record(port_closed, {reason}).
 
-start_link(Host, Port, Database, User, Password, Options) ->
-    gen_server:start_link(?MODULE, [Host, Port, Database,
+start_link(Owner, Host, Port, Database, User, Password, Options) ->
+    gen_server:start_link(?MODULE, [Owner, Host, Port, Database,
                                     User, Password, Options], []).
 
 stop(Pid) ->
     gen_server:cast(Pid, stop).
 
-init([Host, Port, Database, User, Password, Options]) ->
+init([Owner, Host, Port, Database, User, Password, Options]) ->
     process_flag(trap_exit, true),
     Cmd = lists:flatten(io_lib:format("~s ~s ~w ~s ~s ~s ~s",
                                       [helper(), Host, Port, Database,
                                        User, Password, Options])),
     Ref = open_port({spawn, Cmd}, [{packet, 4}, binary]),
-    {ok, #state{ref = Ref}}.
+    {ok, #state{ref = Ref, owner = Owner}}.
 
 terminate(#port_closed{reason = Reason}, #state{ref = Ref}) ->
     io:format("DEBUG: mysqlerl connection ~p shutting down (~p).~n",

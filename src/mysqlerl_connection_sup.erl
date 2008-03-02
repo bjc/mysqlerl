@@ -11,7 +11,7 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 connect(Host, Port, Database, User, Password, Options) ->
-    supervisor:start_child(?MODULE, [Host, Port, Database,
+    supervisor:start_child(?MODULE, [self(), Host, Port, Database,
                                      User, Password, Options]).
 
 random_child() ->
