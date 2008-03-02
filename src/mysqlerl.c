@@ -16,11 +16,21 @@ const char *QUERY_MSG = "sql_query";
 const char *PARAM_QUERY_MSG = "sql_param_query";
 const char *SELECT_COUNT_MSG = "sql_select_count";
 
+MYSQL_RES *results = NULL;
+
 void
 usage()
 {
   fprintf(stderr, "Usage: mysqlerl host port db_name user passwd\n");
   exit(1);
+}
+
+void
+set_mysql_results(MYSQL_RES *res)
+{
+  if (results)
+    mysql_free_result(results);
+  results = res;
 }
 
 ETERM *
@@ -82,7 +92,7 @@ make_row(MYSQL_ROW row, unsigned long *lengths, unsigned int num_fields)
 }
 
 ETERM *
-make_rows(MYSQL_RES *result, unsigned int num_rows, unsigned int num_fields)
+make_rows(unsigned int num_rows, unsigned int num_fields)
 {
   ETERM **rows, *rc;
   unsigned int i;
@@ -99,8 +109,8 @@ make_rows(MYSQL_RES *result, unsigned int num_rows, unsigned int num_fields)
     unsigned long *lengths;
     MYSQL_ROW row;
 
-    row = mysql_fetch_row(result);
-    lengths = mysql_fetch_lengths(result);
+    row = mysql_fetch_row(results);
+    lengths = mysql_fetch_lengths(results);
 
     rt = make_row(row, lengths, num_fields);
     rows[i] = erl_format("~w", rt);
@@ -117,18 +127,18 @@ make_rows(MYSQL_RES *result, unsigned int num_rows, unsigned int num_fields)
 }
 
 ETERM *
-handle_mysql_result(MYSQL_RES *result)
+handle_mysql_result()
 {
   MYSQL_FIELD *fields;
   ETERM *ecols, *erows, *resp;
   unsigned int num_fields, num_rows;
 
-  num_fields = mysql_num_fields(result);
-  fields     = mysql_fetch_fields(result);
-  num_rows   = mysql_num_rows(result);
+  num_fields = mysql_num_fields(results);
+  fields     = mysql_fetch_fields(results);
+  num_rows   = mysql_num_rows(results);
 
   ecols = make_cols(fields, num_fields);
-  erows = make_rows(result, num_rows, num_fields);
+  erows = make_rows(num_rows, num_fields);
 
   resp = erl_format("{selected, ~w, ~w}", ecols, erows);
 
@@ -153,12 +163,10 @@ handle_query(MYSQL *dbh, ETERM *cmd)
     resp = erl_format("{error, {mysql_error, ~i, ~s}}",
                       mysql_errno(dbh), mysql_error(dbh));
   } else {
-    MYSQL_RES *result;
-
-    result = mysql_store_result(dbh);
-    if (result) {
-      resp = handle_mysql_result(result);
-      mysql_free_result(result);
+    set_mysql_results(mysql_store_result(dbh));
+    if (results) {
+      resp = handle_mysql_result(results);
+      set_mysql_results(NULL);
     } else {
       if (mysql_field_count(dbh) == 0)
         resp = erl_format("{updated, ~i}", mysql_affected_rows(dbh));
@@ -205,12 +213,9 @@ handle_select_count(MYSQL *dbh, ETERM *msg)
     resp = erl_format("{error, {mysql_error, ~i, ~s}}",
                       mysql_errno(dbh), mysql_error(dbh));
   } else {
-    MYSQL_RES *result;
-
-    result = mysql_store_result(dbh);
-    if (result) {
-      resp = erl_format("{ok, ~i}", mysql_num_rows(result));
-      mysql_free_result(result);
+    set_mysql_results(mysql_store_result(dbh));
+    if (results) {
+      resp = erl_format("{ok, ~i}", mysql_num_rows(results));
     } else {
       if (mysql_field_count(dbh) == 0)
         resp = erl_format("{ok, ~i}", mysql_affected_rows(dbh));
