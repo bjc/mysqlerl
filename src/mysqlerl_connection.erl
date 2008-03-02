@@ -45,7 +45,7 @@ handle_call(stop, _From, State) ->
     {stop, normal, State};
 handle_call(Request, _From, State) ->
     {reply, gen_server:call(port_ref(State#state.sup),
-                            #req{request = Request}), State}.
+                            #req{request = Request}, infinity), State}.
 
 handle_cast(_Request, State) ->
     {noreply, State}.

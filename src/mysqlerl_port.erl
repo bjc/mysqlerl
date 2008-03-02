@@ -32,7 +32,8 @@ terminate(Reason, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-handle_call(#req{request = Request}, From, #state{ref = Ref} = State) ->
+handle_call(#req{request = {Request, Timeout}}, From,
+            #state{ref = Ref} = State) ->
     io:format("DEBUG: Sending request: ~p~n", [Request]),
     port_command(Ref, term_to_binary(Request)),
     receive
@@ -46,6 +47,9 @@ handle_call(#req{request = Request}, From, #state{ref = Ref} = State) ->
                                      [Other]),
             gen_server:reply(From, {error, connection_closed}),
             {stop, {unknownreply, Other}, State}
+    after Timeout ->
+            gen_server:reply(From, timeout),
+            {stop, timeout, State}
     end.
 
 handle_cast(_Request, State) ->

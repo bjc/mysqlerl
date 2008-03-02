@@ -13,7 +13,8 @@
 #include <string.h>
 
 const char *QUERY_MSG = "sql_query";
-const char *PARAM_QUERY_MSG = "param_query_msg";
+const char *PARAM_QUERY_MSG = "sql_param_query";
+const char *SELECT_COUNT_MSG = "sql_select_count";
 
 void
 usage()
@@ -138,7 +139,7 @@ handle_mysql_result(MYSQL_RES *result)
 }
 
 void
-handle_sql_query(MYSQL *dbh, ETERM *cmd)
+handle_query(MYSQL *dbh, ETERM *cmd)
 {
   ETERM *query, *resp;
   char *q;
@@ -174,8 +175,35 @@ handle_sql_query(MYSQL *dbh, ETERM *cmd)
 }
 
 void
-handle_sql_param_query(MYSQL *dbh, ETERM *cmd)
+handle_param_query(MYSQL *dbh, ETERM *msg)
 {
+  ETERM *query, *params;
+  char *q;
+
+  query = erl_element(2, msg);
+  params = erl_element(3, msg);
+  q = erl_iolist_to_string(query);
+  erl_free_term(query);
+  erl_free_term(params);
+
+  logmsg("DEBUG: got param query msg: %s.", q);
+
+  erl_free(q);
+}
+
+void
+handle_select_count(MYSQL *dbh, ETERM *msg)
+{
+  ETERM *query;
+  char *q;
+
+  query = erl_element(2, msg);
+  q = erl_iolist_to_string(query);
+  erl_free_term(query);
+
+  logmsg("DEBUG: got select count msg: %s.", q);
+
+  erl_free(q);
 }
 
 void
@@ -186,10 +214,13 @@ dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
   tag = erl_element(1, msg);
   if (strncmp((char *)ERL_ATOM_PTR(tag),
               QUERY_MSG, strlen(QUERY_MSG)) == 0) {
-    handle_sql_query(dbh, msg);
+    handle_query(dbh, msg);
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      PARAM_QUERY_MSG, strlen(PARAM_QUERY_MSG)) == 0) {
-    handle_sql_param_query(dbh, msg);
+    handle_param_query(dbh, msg);
+  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
+                     SELECT_COUNT_MSG, strlen(SELECT_COUNT_MSG)) == 0) {
+    handle_select_count(dbh, msg);
   } else {
     logmsg("WARNING: message type %s unknown.", (char *)ERL_ATOM_PTR(tag));
     erl_free_term(tag);

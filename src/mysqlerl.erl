@@ -115,7 +115,7 @@ first(Ref) ->
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
 first(Ref, Timeout) ->
-    gen_server:call(Ref, #sql_first{}, Timeout).
+    conn_fwd(Ref, #sql_first{}, Timeout).
 
 last(Ref) ->
     last(Ref, infinity).
@@ -127,7 +127,7 @@ last(Ref) ->
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
 last(Ref, Timeout) ->
-    gen_server:call(Ref, #sql_last{}, Timeout).
+    conn_fwd(Ref, #sql_last{}, Timeout).
 
 next(Ref) ->
     next(Ref, infinity).
@@ -139,7 +139,7 @@ next(Ref) ->
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
 next(Ref, Timeout) ->
-    gen_server:call(Ref, #sql_next{}, Timeout).
+    conn_fwd(Ref, #sql_next{}, Timeout).
 
 prev(Ref) ->
     prev(Ref, infinity).
@@ -151,7 +151,7 @@ prev(Ref) ->
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
 prev(Ref, Timeout) ->
-    gen_server:call(Ref, #sql_prev{}, Timeout).
+    conn_fwd(Ref, #sql_prev{}, Timeout).
 
 select_count(Ref, SQLQuery) ->
     select_count(Ref, SQLQuery, infinity).
@@ -164,7 +164,7 @@ select_count(Ref, SQLQuery) ->
 %%     {ok, NrRows} | {error, Reason}
 %%     NrRows = n_rows()
 select_count(Ref, SQLQuery, Timeout) ->
-    gen_server:call(Ref, #sql_select_count{q = SQLQuery}, Timeout).
+    conn_fwd(Ref, #sql_select_count{q = SQLQuery}, Timeout).
 
 select(Ref, Pos, N) ->
     select(Ref, Pos, N, infinity).
@@ -177,7 +177,7 @@ select(Ref, Pos, N) ->
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
 select(Ref, Pos, N, Timeout) ->
-    gen_server:call(Ref, #sql_select{pos = Pos, n = N}, Timeout).
+    conn_fwd(Ref, #sql_select{pos = Pos, n = N}, Timeout).
 
 param_query(Ref, SQLQuery, Params) ->
     param_query(Ref, SQLQuery, Params, infinity).
@@ -191,8 +191,7 @@ param_query(Ref, SQLQuery, Params) ->
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
 param_query(Ref, SQLQuery, Params, Timeout) ->
-    gen_server:call(Ref, #sql_param_query{q = SQLQuery, params = Params},
-                    Timeout).
+    conn_fwd(Ref, #sql_param_query{q = SQLQuery, params = Params}, Timeout).
 
 sql_query(Ref, SQLQuery) ->
     sql_query(Ref, SQLQuery, infinity).
@@ -205,7 +204,10 @@ sql_query(Ref, SQLQuery) ->
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
 sql_query(Ref, SQLQuery, Timeout) ->
-    gen_server:call(Ref, #sql_query{q = SQLQuery}, Timeout).
+    conn_fwd(Ref, #sql_query{q = SQLQuery}, Timeout).
+
+conn_fwd(Ref, Msg, Timeout) ->
+    gen_server:call(Ref, {Msg, Timeout}, infinity).
 
 %% Convert type needs some love! Cover all bases here instead of
 %% fudging.
