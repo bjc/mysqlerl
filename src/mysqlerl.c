@@ -4,20 +4,16 @@
  * Copyright (C) 2008, Brian Cully <bjc@kublai.com>
  */
 
+#include "io.h"
+#include "log.h"
+
 #include <erl_interface.h>
 #include <ei.h>
 #include <mysql.h>
 
 #include <errno.h>
-#include <stdio.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-const char *LOGPATH = "/tmp/mysqlerl.log";
-static FILE *logfile = NULL;
 
 const char *QUERY_MSG = "sql_query";
 
@@ -28,83 +24,6 @@ struct msg {
   unsigned char *buf;
 };
 typedef struct msg msg_t;
-
-void
-openlog()
-{
-  logfile = fopen(LOGPATH, "a");
-}
-
-void
-closelog()
-{
-  fclose(logfile);
-}
-
-void
-logmsg(const char *format, ...)
-{
-  FILE *out = logfile;
-  va_list args;
-
-  if (logfile == NULL)
-    out = stderr;
-
-  va_start(args, format);
-  (void)vfprintf(out, format, args);
-  (void)fprintf(out, "\n");
-  va_end(args);
-
-  fflush(out);
-}
-
-int
-restartable_read(unsigned char *buf, size_t buflen)
-{
-  ssize_t rc, readb;
-
-  rc = 0;
-  READLOOP:
-  while (rc < buflen) {
-    readb = read(STDIN_FILENO, buf + rc, buflen - rc);
-    if (readb == -1) {
-      if (errno == EAGAIN || errno == EINTR)
-        goto READLOOP;
-
-      return -1;
-    } else if (readb == 0) {
-      logmsg("ERROR: EOF trying to read additional %d bytes from "
-             "standard input", buflen - rc);
-      return -1;
-    }
-
-    rc += readb;
-  }
-
-  return rc;
-}
-
-int
-restartable_write(const unsigned char *buf, size_t buflen)
-{
-  ssize_t rc, wroteb;
-
-  rc = 0;
-  WRITELOOP:
-  while (rc < buflen) {
-    wroteb = write(STDOUT_FILENO, buf + rc, buflen - rc);
-    if (wroteb == -1) {
-      if (errno == EAGAIN || errno == EINTR)
-        goto WRITELOOP;
-
-      return -1;
-    }
-
-    rc += wroteb;
-  }
-
-  return rc;
-}
 
 msg_t *
 read_msg()
