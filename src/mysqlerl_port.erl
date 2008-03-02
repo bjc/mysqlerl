@@ -32,8 +32,21 @@ terminate(Reason, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-handle_call(#req{request = Request}, _From, State) ->
-    {reply, make_request(State#state.ref, Request), State}.
+handle_call(#req{request = Request}, From, #state{ref = Ref} = State) ->
+    io:format("DEBUG: Sending request: ~p~n", [Request]),
+    port_command(Ref, term_to_binary(Request)),
+    receive
+        {Ref, {data, Res}} ->
+            {reply, binary_to_term(Res), State};
+        {'EXIT', Ref, Reason} ->
+            gen_server:reply(From, {error, connection_closed}),
+            {stop, #port_closed{reason = Reason}, State};
+        Other ->
+            error_logger:warning_msg("Got unknown query response: ~p~n",
+                                     [Other]),
+            gen_server:reply(From, {error, connection_closed}),
+            {stop, {unknownreply, Other}, State}
+    end.
 
 handle_cast(_Request, State) ->
     {noreply, State}.
@@ -41,14 +54,3 @@ handle_cast(_Request, State) ->
 handle_info({'EXIT', Ref, Reason}, #state{ref = Ref} = State) ->
     io:format("DEBUG: Port ~p closed on ~p.~n", [Ref, State]),
     {stop, #port_closed{reason = Reason}, State}.
-
-make_request(Ref, Req) ->
-    io:format("DEBUG: Sending request: ~p~n", [Req]),
-    port_command(Ref, term_to_binary(Req)),
-    receive
-        {Ref, {data, Res}} -> binary_to_term(Res);
-        Other ->
-            error_logger:warning_msg("Got unknown query response: ~p~n",
-                                     [Other]),
-            exit({badreply, Other})
-    end.
