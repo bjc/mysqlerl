@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2008, Brian Cully <bjc@kublai.com>
+ */
+
 #include "msg.h"
 
 #include "io.h"

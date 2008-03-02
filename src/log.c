@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2008, Brian Cully <bjc@kublai.com>
+ */
+
 #include "log.h"
 
 #include <stdio.h>

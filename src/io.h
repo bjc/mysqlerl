@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2008, Brian Cully <bjc@kublai.com>
+ */
+
 #ifndef _IO_H
 #define _IO_H
 
