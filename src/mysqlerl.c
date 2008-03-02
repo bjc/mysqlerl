@@ -13,6 +13,13 @@
 
 const char *QUERY_MSG = "sql_query";
 
+void
+usage()
+{
+  fprintf(stderr, "Usage: mysqlerl host port db_name user passwd\n");
+  exit(1);
+}
+
 ETERM *
 handle_mysql_result(MYSQL_RES *result)
 {
@@ -22,6 +29,7 @@ handle_mysql_result(MYSQL_RES *result)
 
   num_fields = mysql_num_fields(result);
   fields = mysql_fetch_fields(result);
+
   cols = (ETERM **)malloc(num_fields * sizeof(ETERM *));
   for (i = 0; i < num_fields; i++) {
     logmsg("DEBUG: cols[%d]: %s", i, fields[i].name);
@@ -42,34 +50,26 @@ handle_mysql_result(MYSQL_RES *result)
 
     rowtup = (ETERM **)malloc(num_fields * sizeof(ETERM *));
     for (j = 0; j < num_fields; j++) {
-      logmsg("DEBUG: rows[%d][%d] (%d): '%s'", i, j, lengths[j], row[j]);
       if (row[j])
         rowtup[j] = erl_mk_estring(row[j], lengths[j]);
       else
         rowtup[j] = erl_mk_atom("NULL");
-      logmsg("DEBUG: rowtup[%d]: %d", j, rowtup[j]);
     }
-    logmsg("DEBUG: making tuple of %d", num_fields);
     rt = erl_mk_tuple(rowtup, num_fields);
     if (rt == NULL) {
       logmsg("ERROR: couldn't allocate %d-tuple", num_fields);
       exit(3);
     }
-    logmsg("DEBUG: copying rt");
     rows[i] = erl_format("~w", rt);
 
-    logmsg("DEBUG: freeing row fields");
     for (j = 0; j < num_fields; j++)
       erl_free_term(rowtup[j]);
     free(rowtup);
     erl_free_term(rt);
   }
-  logmsg("DEBUG: making row list");
   erows = erl_mk_list(rows, num_rows);
 
-  logmsg("DEBUG: preparing response");
-  resp = erl_format("{selected, ~w, ~w}",
-                    ecols, erows);
+  resp = erl_format("{selected, ~w, ~w}", ecols, erows);
 
   for (i = 0; i < num_fields; i++)
     erl_free_term(cols[i]);
@@ -136,13 +136,6 @@ dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
   }
 
   erl_free_term(tag);
-}
-
-void
-usage()
-{
-  fprintf(stderr, "Usage: mysqlerl host port db_name user passwd\n");
-  exit(1);
 }
 
 int
