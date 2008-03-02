@@ -3,7 +3,8 @@
 
 -behavior(supervisor).
 
--export([start_link/0, connect/6, random_child/0]).
+-export([random_child/0]).
+-export([start_link/0, connect/6]).
 
 -export([init/1]).
 
