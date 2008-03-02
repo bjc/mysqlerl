@@ -159,7 +159,7 @@ handle_sql_query(MYSQL *dbh, ETERM *cmd)
       mysql_free_result(result);
     } else {
       if (mysql_field_count(dbh) == 0)
-        resp = erl_format("{num_rows, ~i}", mysql_affected_rows(dbh));
+        resp = erl_format("{updated, ~i}", mysql_affected_rows(dbh));
       else
         resp = erl_format("{error, {mysql_error, ~i, ~s}}",
                           mysql_errno(dbh), mysql_error(dbh));
