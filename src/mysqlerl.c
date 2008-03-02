@@ -63,7 +63,7 @@ make_row(MYSQL_ROW row, unsigned long *lengths, unsigned int num_fields)
     if (row[i])
       rowtup[i] = erl_mk_estring(row[i], lengths[i]);
     else
-      rowtup[i] = erl_mk_atom("NULL");
+      rowtup[i] = erl_mk_atom("null");
   }
 
   rc = erl_mk_tuple(rowtup, num_fields);
