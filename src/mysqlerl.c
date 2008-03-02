@@ -13,6 +13,7 @@
 #include <string.h>
 
 const char *QUERY_MSG = "sql_query";
+const char *PARAM_QUERY_MSG = "param_query_msg";
 
 void
 usage()
@@ -173,6 +174,11 @@ handle_sql_query(MYSQL *dbh, ETERM *cmd)
 }
 
 void
+handle_sql_param_query(MYSQL *dbh, ETERM *cmd)
+{
+}
+
+void
 dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
 {
   ETERM *tag;
@@ -181,6 +187,9 @@ dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
   if (strncmp((char *)ERL_ATOM_PTR(tag),
               QUERY_MSG, strlen(QUERY_MSG)) == 0) {
     handle_sql_query(dbh, msg);
+  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
+                     PARAM_QUERY_MSG, strlen(PARAM_QUERY_MSG)) == 0) {
+    handle_sql_param_query(dbh, msg);
   } else {
     logmsg("WARNING: message type %s unknown.", (char *)ERL_ATOM_PTR(tag));
     erl_free_term(tag);

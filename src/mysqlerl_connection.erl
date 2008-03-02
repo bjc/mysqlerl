@@ -2,6 +2,7 @@
 -author('bjc@kublai.com').
 
 -include("mysqlerl.hrl").
+-include("mysqlerl_port.hrl").
 
 -behavior(gen_server).
 
@@ -10,8 +11,7 @@
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
 
--record(state, {ref, owner}).
--record(port_closed, {reason}).
+-record(state, {sup, owner}).
 
 start_link(Owner, Host, Port, Database, User, Password, Options) ->
     gen_server:start_link(?MODULE, [Owner, Host, Port, Database,
@@ -26,16 +26,11 @@ init([Owner, Host, Port, Database, User, Password, Options]) ->
     Cmd = lists:flatten(io_lib:format("~s ~s ~w ~s ~s ~s ~s",
                                       [helper(), Host, Port, Database,
                                        User, Password, Options])),
-    Ref = open_port({spawn, Cmd}, [{packet, 4}, binary]),
-    {ok, #state{ref = Ref, owner = Owner}}.
+    {ok, Sup} = mysqlerl_port_sup:start_link(Cmd),
+    {ok, #state{sup = Sup, owner = Owner}}.
 
-terminate(#port_closed{reason = Reason}, #state{ref = Ref}) ->
-    io:format("DEBUG: mysqlerl connection ~p shutting down (~p).~n",
-              [Ref, Reason]),
-    ok;
-terminate(Reason, State) ->
-    port_close(State#state.ref),
-    io:format("DEBUG: got terminate: ~p~n", [Reason]),
+terminate(Reason, _State) ->
+    io:format("DEBUG: connection got terminate: ~p~n", [Reason]),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -49,17 +44,15 @@ handle_call(Request, From, #state{owner = Owner} = State)
 handle_call(stop, _From, State) ->
     {stop, normal, State};
 handle_call(Request, _From, State) ->
-    {reply, make_request(State#state.ref, Request), State}.
+    {reply, gen_server:call(port_ref(State#state.sup),
+                            #req{request = Request}), State}.
 
 handle_cast(_Request, State) ->
     {noreply, State}.
 
 handle_info({'EXIT', Pid, _Reason}, #state{owner = Pid} = State) ->
     io:format("DEBUG: owner ~p shut down.~n", [Pid]),
-    {stop, normal, State};
-handle_info({'EXIT', Ref, Reason}, #state{ref = Ref} = State) ->
-    io:format("DEBUG: Port ~p closed on ~p.~n", [Ref, State]),
-    {stop, #port_closed{reason = Reason}, State}.
+    {stop, normal, State}.
 
 helper() ->
     case code:priv_dir(mysqlerl) of
@@ -68,13 +61,6 @@ helper() ->
     end,
     filename:join([PrivDir, "mysqlerl"]).
 
-make_request(Ref, Req) ->
-    io:format("DEBUG: Sending request: ~p~n", [Req]),
-    port_command(Ref, term_to_binary(Req)),
-    receive
-        {Ref, {data, Res}} -> binary_to_term(Res);
-        Other ->
-            error_logger:warning_msg("Got unknown query response: ~p~n",
-                                     [Other]),
-            exit({badreply, Other})
-    end.
+port_ref(Sup) ->
+    [{mysqlerl_port, Ref, worker, _}] = supervisor:which_children(Sup),
+    Ref.
