@@ -54,12 +54,10 @@ handle_call(Request, _From, State) ->
 handle_cast(_Request, State) ->
     {noreply, State}.
 
-handle_info({'EXIT', Pid, _Reason}, State)
-  when Pid == State#state.owner ->
+handle_info({'EXIT', Pid, _Reason}, #state{owner = Pid} = State) ->
     io:format("DEBUG: owner ~p shut down.~n", [Pid]),
     {stop, normal, State};
-handle_info({'EXIT', Ref, Reason}, State)
-  when Ref == State#state.ref ->
+handle_info({'EXIT', Ref, Reason}, #state{ref = Ref} = State) ->
     io:format("DEBUG: Port ~p closed on ~p.~n", [Ref, State]),
     {stop, #port_closed{reason = Reason}, State}.
 
