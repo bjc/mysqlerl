@@ -1,6 +1,4 @@
-Currently, all the MySQL drivers I've found use direct socket access
-on knowledge of wire protocol in order to connect and manipulate MySQL
-DBs.
+MySQL client port driver. Uses libmysqlclient, as opposed to sniffing
+wire protocol.
 
-This is an attempt to fix that. This library will run as a port driver
-and use libmysqlclient instead.
+Spawns one unix process per DB connection.
