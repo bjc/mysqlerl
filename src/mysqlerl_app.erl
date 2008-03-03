@@ -3,6 +3,7 @@
 
 -behavior(application).
 
+%% Behavior callbacks.
 -export([start/2, stop/1]).
 
 start(normal, []) ->
