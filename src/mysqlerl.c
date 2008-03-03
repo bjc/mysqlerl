@@ -212,9 +212,10 @@ handle_param_query(MYSQL *dbh, ETERM *msg)
   char *q;
 
   query = erl_element(2, msg);
-  params = erl_element(3, msg);
   q = erl_iolist_to_string(query);
   erl_free_term(query);
+
+  params = erl_element(3, msg);
   erl_free_term(params);
 
   logmsg("DEBUG: got param query msg: %s.", q);
