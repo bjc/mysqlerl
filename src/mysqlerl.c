@@ -189,6 +189,21 @@ handle_query(MYSQL *dbh, ETERM *cmd)
   erl_free_term(resp);
 }
 
+/*
+
+6 > odbc:param_query(Ref,"INSERT INTO EMPLOYEE (NR, FIRSTNAME, " 
+                         "LASTNAME, GENDER) VALUES(?, ?, ?, ?)", 
+                         [{sql_integer,[2,3,4,5,6,7,8]}, 
+                          {{sql_varchar, 20}, 
+                           ["John", "Monica", "Ross", "Rachel", 
+                            "Piper", "Prue", "Louise"]}, 
+                          {{sql_varchar, 20}, 
+                           ["Doe","Geller","Geller", "Green", 
+                            "Halliwell", "Halliwell", "Lane"]}, 
+                          {{sql_char, 1}, ["M","F","M","F","T","F","F"]}]).
+  {updated, 7}
+ */
+
 void
 handle_param_query(MYSQL *dbh, ETERM *msg)
 {
