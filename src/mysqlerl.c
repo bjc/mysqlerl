@@ -12,14 +12,14 @@
 #include <mysql.h>
 #include <string.h>
 
-const char *QUERY_MSG = "sql_query";
-const char *PARAM_QUERY_MSG = "sql_param_query";
-const char *SELECT_MSG = "sql_select";
+const char *QUERY_MSG        = "sql_query";
+const char *PARAM_QUERY_MSG  = "sql_param_query";
+const char *SELECT_MSG       = "sql_select";
 const char *SELECT_COUNT_MSG = "sql_select_count";
-const char *FIRST_MSG = "sql_first";
-const char *LAST_MSG = "sql_last";
-const char *NEXT_MSG = "sql_next";
-const char *PREV_MSG = "sql_prev";
+const char *FIRST_MSG        = "sql_first";
+const char *LAST_MSG         = "sql_last";
+const char *NEXT_MSG         = "sql_next";
+const char *PREV_MSG         = "sql_prev";
 
 MYSQL_RES *results = NULL;
 my_ulonglong resultoffset = 0, numrows = 0;
