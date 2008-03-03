@@ -14,8 +14,8 @@
 
 const char *QUERY_MSG        = "sql_query";
 const char *PARAM_QUERY_MSG  = "sql_param_query";
-const char *SELECT_MSG       = "sql_select";
 const char *SELECT_COUNT_MSG = "sql_select_count";
+const char *SELECT_MSG       = "sql_select";
 const char *FIRST_MSG        = "sql_first";
 const char *LAST_MSG         = "sql_last";
 const char *NEXT_MSG         = "sql_next";
@@ -206,11 +206,6 @@ handle_param_query(MYSQL *dbh, ETERM *msg)
   erl_free(q);
 }
 
-void handle_select(MYSQL *dbh, ETERM *msg)
-{
-  logmsg("DEBUG: got select msg.");
-}
-
 void
 handle_select_count(MYSQL *dbh, ETERM *msg)
 {
@@ -239,6 +234,46 @@ handle_select_count(MYSQL *dbh, ETERM *msg)
   }
   erl_free(q);
 
+  write_msg(resp);
+  erl_free_term(resp);
+}
+
+void
+handle_select(MYSQL *dbh, ETERM *msg)
+{
+  MYSQL_FIELD *fields;
+  ETERM *epos, *enum_items, *ecols, *erows, *resp;
+  my_ulonglong pos, num_items;
+  unsigned int num_fields;
+  
+  epos       = erl_element(2, msg);
+  enum_items = erl_element(3, msg);
+  pos        = ERL_INT_UVALUE(epos);
+  num_items  = ERL_INT_UVALUE(enum_items);
+  erl_free_term(enum_items);
+  erl_free_term(epos);
+
+  logmsg("DEBUG: got select pos: %d, n: %d.", erl_size(msg), pos, num_items);
+  if (results == NULL) {
+    logmsg("ERROR: select message w/o cursor.");
+    exit(2);
+  }
+
+  num_fields   = mysql_num_fields(results);
+  fields       = mysql_fetch_fields(results);
+  resultoffset = pos - 1;
+  if (resultoffset < 0)
+    resultoffset = 0;
+  if (num_items > numrows - resultoffset)
+    num_items = numrows - resultoffset;
+  mysql_data_seek(results, resultoffset);
+
+  ecols = make_cols(fields, num_fields);
+  erows = make_rows(num_items, num_fields);
+  resp = erl_format("{selected, ~w, ~w}", ecols, erows);
+  erl_free_term(erows);
+
+  erl_free_term(ecols);
   write_msg(resp);
   erl_free_term(resp);
 }
@@ -380,11 +415,11 @@ dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
                      PARAM_QUERY_MSG, strlen(PARAM_QUERY_MSG)) == 0) {
     handle_param_query(dbh, msg);
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
-                     SELECT_MSG, strlen(SELECT_MSG)) == 0) {
-    handle_select(dbh, msg);
-  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      SELECT_COUNT_MSG, strlen(SELECT_COUNT_MSG)) == 0) {
     handle_select_count(dbh, msg);
+  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
+                     SELECT_MSG, strlen(SELECT_MSG)) == 0) {
+    handle_select(dbh, msg);
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      FIRST_MSG, strlen(FIRST_MSG)) == 0) {
     handle_first(dbh, msg);
