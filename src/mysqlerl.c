@@ -250,10 +250,38 @@ handle_first(MYSQL *dbh, ETERM *msg)
     exit(2);
   }
 
-  num_fields = mysql_num_fields(results);
-  fields     = mysql_fetch_fields(results);
-  mysql_data_seek(results, 0);
+  num_fields   = mysql_num_fields(results);
+  fields       = mysql_fetch_fields(results);
   resultoffset = 0;
+  mysql_data_seek(results, resultoffset);
+
+  ecols = make_cols(fields, num_fields);
+  erows = make_rows(1, num_fields);
+  resp = erl_format("{selected, ~w, ~w}", ecols, erows);
+  erl_free_term(erows);
+
+  erl_free_term(ecols);
+  write_msg(resp);
+  erl_free_term(resp);
+}
+
+void
+handle_last(MYSQL *dbh, ETERM *msg)
+{
+  MYSQL_FIELD *fields;
+  ETERM *ecols, *erows, *resp;
+  unsigned int num_fields;
+
+  logmsg("DEBUG: got last msg.");
+  if (results == NULL) {
+    logmsg("ERROR: got last message w/o cursor.");
+    exit(2);
+  }
+
+  num_fields   = mysql_num_fields(results);
+  fields       = mysql_fetch_fields(results);
+  resultoffset = numrows - 1;
+  mysql_data_seek(results, resultoffset);
 
   ecols = make_cols(fields, num_fields);
   erows = make_rows(1, num_fields);
@@ -314,6 +342,9 @@ dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      FIRST_MSG, strlen(FIRST_MSG)) == 0) {
     handle_first(dbh, msg);
+  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
+                     LAST_MSG, strlen(LAST_MSG)) == 0) {
+    handle_last(dbh, msg);
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      NEXT_MSG, strlen(NEXT_MSG)) == 0) {
     handle_next(dbh, msg);
