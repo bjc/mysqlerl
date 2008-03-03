@@ -14,12 +14,12 @@
 
 const char *QUERY_MSG = "sql_query";
 const char *PARAM_QUERY_MSG = "sql_param_query";
+const char *SELECT_MSG = "sql_select";
 const char *SELECT_COUNT_MSG = "sql_select_count";
 const char *FIRST_MSG = "sql_first";
 const char *LAST_MSG = "sql_last";
 const char *NEXT_MSG = "sql_next";
 const char *PREV_MSG = "sql_prev";
-const char *SELECT_MSG = "sql_select";
 
 MYSQL_RES *results = NULL;
 my_ulonglong resultoffset = 0, numrows = 0;
@@ -206,6 +206,11 @@ handle_param_query(MYSQL *dbh, ETERM *msg)
   erl_free(q);
 }
 
+void handle_select(MYSQL *dbh, ETERM *msg)
+{
+  logmsg("DEBUG: got select msg.");
+}
+
 void
 handle_select_count(MYSQL *dbh, ETERM *msg)
 {
@@ -374,6 +379,9 @@ dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      PARAM_QUERY_MSG, strlen(PARAM_QUERY_MSG)) == 0) {
     handle_param_query(dbh, msg);
+  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
+                     SELECT_MSG, strlen(SELECT_MSG)) == 0) {
+    handle_select(dbh, msg);
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      SELECT_COUNT_MSG, strlen(SELECT_COUNT_MSG)) == 0) {
     handle_select_count(dbh, msg);
