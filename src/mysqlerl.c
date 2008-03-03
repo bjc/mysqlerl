@@ -205,7 +205,6 @@ handle_query(MYSQL *dbh, ETERM *cmd)
  *                        {{sql_char, 1}, ["M","F","M","F","T","F","F"]}]).
  * {updated, 7}
  */
-
 void
 handle_param_query(MYSQL *dbh, ETERM *msg)
 {
