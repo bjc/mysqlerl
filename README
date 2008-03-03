@@ -1,4 +1,13 @@
 MySQL client port driver. Uses libmysqlclient, as opposed to sniffing
 wire protocol.
 
-Spawns one unix process per DB connection.
+Spawns one unix process per DB connection. This process has a knack
+for exiting when anything goes even slighltly amiss. It also gets
+restarted by a supervisor, so this might be a good thing.
+
+This library tries to be ODBC compatible as much as possible. I have
+never actually /used/ ODBC, but I can read man pages. If you know
+better, please let me know.
+
+My objective is that if you know how to use ODBC in Erlang, then you
+can use this library with only changing the connect syntax.
