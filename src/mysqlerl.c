@@ -325,6 +325,43 @@ handle_next(MYSQL *dbh, ETERM *msg)
 }
 
 void
+handle_prev(MYSQL *dbh, ETERM *msg)
+{
+  MYSQL_FIELD *fields;
+  ETERM *ecols, *erows, *resp;
+  unsigned int num_fields;
+
+  logmsg("DEBUG: got prev msg.");
+  if (results == NULL) {
+    logmsg("ERROR: got prev message w/o cursor.");
+    exit(2);
+  }
+
+  num_fields = mysql_num_fields(results);
+  fields     = mysql_fetch_fields(results);
+
+  ecols = make_cols(fields, num_fields);
+  logmsg("resultoffset: %d, num_rows: %d", resultoffset, numrows);
+  if (resultoffset == 0) {
+    resp = erl_format("{selected, ~w, []}", ecols);
+  } else {
+    resultoffset = resultoffset - 1;
+    mysql_data_seek(results, resultoffset);
+    erows = make_rows(1, num_fields);
+
+    /* Rewind to position at the point we returned. */
+    resultoffset = resultoffset - 1;
+    mysql_data_seek(results, resultoffset);
+    resp = erl_format("{selected, ~w, ~w}", ecols, erows);
+    erl_free_term(erows);
+  }
+
+  erl_free_term(ecols);
+  write_msg(resp);
+  erl_free_term(resp);
+}
+
+void
 dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
 {
   ETERM *tag;
@@ -348,6 +385,9 @@ dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      NEXT_MSG, strlen(NEXT_MSG)) == 0) {
     handle_next(dbh, msg);
+  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
+                     PREV_MSG, strlen(PREV_MSG)) == 0) {
+    handle_prev(dbh, msg);
   } else {
     logmsg("WARNING: message type %s unknown.", (char *)ERL_ATOM_PTR(tag));
     erl_free_term(tag);
