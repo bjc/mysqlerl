@@ -15,10 +15,11 @@
 const char *QUERY_MSG = "sql_query";
 const char *PARAM_QUERY_MSG = "sql_param_query";
 const char *SELECT_COUNT_MSG = "sql_select_count";
+const char *FIRST_MSG = "sql_first";
 const char *NEXT_MSG = "sql_next";
 
 MYSQL_RES *results = NULL;
-my_ulonglong resultoffset = 0;
+my_ulonglong resultoffset = 0, numrows = 0;
 
 void
 usage()
@@ -34,6 +35,7 @@ set_mysql_results(MYSQL_RES *res)
     mysql_free_result(results);
   results = res;
   resultoffset = 0;
+  numrows = mysql_num_rows(results);
 }
 
 ETERM *
@@ -113,6 +115,7 @@ make_rows(unsigned int num_rows, unsigned int num_fields)
     MYSQL_ROW row;
 
     row = mysql_fetch_row(results);
+    resultoffset++;
     lengths = mysql_fetch_lengths(results);
 
     rt = make_row(row, lengths, num_fields);
@@ -134,14 +137,13 @@ handle_mysql_result()
 {
   MYSQL_FIELD *fields;
   ETERM *ecols, *erows, *resp;
-  unsigned int num_fields, num_rows;
+  unsigned int num_fields;
 
   num_fields = mysql_num_fields(results);
   fields     = mysql_fetch_fields(results);
-  num_rows   = mysql_num_rows(results);
 
   ecols = make_cols(fields, num_fields);
-  erows = make_rows(num_rows, num_fields);
+  erows = make_rows(numrows, num_fields);
 
   resp = erl_format("{selected, ~w, ~w}", ecols, erows);
 
@@ -218,7 +220,7 @@ handle_select_count(MYSQL *dbh, ETERM *msg)
   } else {
     set_mysql_results(mysql_store_result(dbh));
     if (results) {
-      resp = erl_format("{ok, ~i}", mysql_num_rows(results));
+      resp = erl_format("{ok, ~i}", numrows);
     } else {
       if (mysql_field_count(dbh) == 0)
         resp = erl_format("{ok, ~i}", mysql_affected_rows(dbh));
@@ -229,6 +231,34 @@ handle_select_count(MYSQL *dbh, ETERM *msg)
   }
   erl_free(q);
 
+  write_msg(resp);
+  erl_free_term(resp);
+}
+
+void
+handle_first(MYSQL *dbh, ETERM *msg)
+{
+  MYSQL_FIELD *fields;
+  ETERM *ecols, *erows, *resp;
+  unsigned int num_fields;
+
+  logmsg("DEBUG: got first msg.");
+  if (results == NULL) {
+    logmsg("ERROR: got first message w/o cursor.");
+    exit(2);
+  }
+
+  num_fields = mysql_num_fields(results);
+  fields     = mysql_fetch_fields(results);
+  mysql_data_seek(results, 0);
+  resultoffset = 0;
+
+  ecols = make_cols(fields, num_fields);
+  erows = make_rows(1, num_fields);
+  resp = erl_format("{selected, ~w, ~w}", ecols, erows);
+  erl_free_term(erows);
+
+  erl_free_term(ecols);
   write_msg(resp);
   erl_free_term(resp);
 }
@@ -250,13 +280,13 @@ handle_next(MYSQL *dbh, ETERM *msg)
   fields     = mysql_fetch_fields(results);
 
   ecols = make_cols(fields, num_fields);
-  if (resultoffset == mysql_num_rows(results)) {
+  logmsg("resultoffset: %d, num_rows: %d", resultoffset, numrows);
+  if (resultoffset == numrows) {
     resp = erl_format("{selected, ~w, []}", ecols);
   } else {
     erows = make_rows(1, num_fields);
     resp = erl_format("{selected, ~w, ~w}", ecols, erows);
     erl_free_term(erows);
-    resultoffset++;
   }
 
   erl_free_term(ecols);
@@ -279,6 +309,9 @@ dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      SELECT_COUNT_MSG, strlen(SELECT_COUNT_MSG)) == 0) {
     handle_select_count(dbh, msg);
+  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
+                     FIRST_MSG, strlen(FIRST_MSG)) == 0) {
+    handle_first(dbh, msg);
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      NEXT_MSG, strlen(NEXT_MSG)) == 0) {
     handle_next(dbh, msg);
