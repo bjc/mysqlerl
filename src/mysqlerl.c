@@ -19,6 +19,7 @@ const char *FIRST_MSG = "sql_first";
 const char *LAST_MSG = "sql_last";
 const char *NEXT_MSG = "sql_next";
 const char *PREV_MSG = "sql_prev";
+const char *SELECT_MSG = "sql_select";
 
 MYSQL_RES *results = NULL;
 my_ulonglong resultoffset = 0, numrows = 0;
