@@ -1,10 +1,10 @@
 ERLINTERFACE = 	erl_interface-3.5.5.3
 
 CFLAGS =	-I/usr/local/mysql/include \
-		-I$(HOME)/lib/erlang/lib/erl_interface-$(ERLINTERFACE)/include \
+		-I$(HOME)/lib/erlang/lib/$(ERLINTERFACE)/include \
 		-O2 -g -Wall -Werror
 LDFLAGS =	-L/usr/local/mysql/lib \
-		-L$(HOME)/lib/erlang/lib/erl_interface-$(ERLINTERFACE)/lib \
+		-L$(HOME)/lib/erlang/lib/$(ERLINTERFACE)/lib \
 		-lerl_interface -lei
 EFLAGS =	-W +debug_info
 
