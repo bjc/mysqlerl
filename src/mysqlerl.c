@@ -482,8 +482,8 @@ main(int argc, char *argv[])
   mysql_init(&dbh);
   if (mysql_real_connect(&dbh, host, user, passwd,
                          db_name, atoi(port), NULL, 0) == NULL) {
-    logmsg("ERROR: Failed to connect to database %s: %s (%s:%s).",
-           db_name, mysql_error(&dbh), user, passwd);
+    logmsg("ERROR: Failed to connect to database %s as %s: %s.",
+           db_name, user, mysql_error(&dbh));
     exit(2);
   }
 
