@@ -35,7 +35,7 @@ test_query() ->
 test_param_query() ->
     param_query(mysqlerl_connection_sup:random_child(),
                "SELECT * FROM user WHERE username=?",
-               [{{sql_varchar, 20}, "bjc"}]).
+               [{{sql_varchar, 20}, ["bjc"]}]).
 
 start() ->
     start(temporary).
