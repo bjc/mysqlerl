@@ -310,30 +310,64 @@ handle_param_query(ETERM *msg)
           t = (char *)ERL_ATOM_PTR(t_type);
           bind[i].length = malloc(sizeof(unsigned long));
           if (strncmp(t, NUMERIC_SQL, strlen(NUMERIC_SQL)) == 0) {
+            int val;
+
             bind[i].buffer_type = MYSQL_TYPE_LONG;
             *bind[i].length = bind[i].buffer_length * sizeof(int);
             bind[i].buffer = malloc(*bind[i].length);
-            memcpy(bind[i].buffer, value, sizeof(int));
+            memset(bind[i].buffer, 0, *bind[i].length);
+
+            val = ERL_INT_VALUE(value);
+            memcpy(bind[i].buffer, &val, *bind[i].length);
           } else if (strncmp(t, DECIMAL_SQL, strlen(DECIMAL_SQL)) == 0) {
+            char *val;
+
             bind[i].buffer_type = MYSQL_TYPE_STRING;
             *bind[i].length = bind[i].buffer_length * sizeof(char *);
             bind[i].buffer = malloc(*bind[i].length);
-            memcpy(bind[i].buffer, value, sizeof(char));
+            memset(bind[i].buffer, 0, *bind[i].length);
+
+            val = erl_iolist_to_string(value);
+            if (val) {
+              memcpy(bind[i].buffer, val, *bind[i].length);
+              free(val);
+            }
           } else if (strncmp(t, FLOAT_SQL, strlen(FLOAT_SQL)) == 0) {
+            float val;
+
             bind[i].buffer_type = MYSQL_TYPE_FLOAT;
             *bind[i].length = bind[i].buffer_length * sizeof(float);
             bind[i].buffer = malloc(*bind[i].length);
-            memcpy(bind[i].buffer, value, sizeof(float));
+            memset(bind[i].buffer, 0, *bind[i].length);
+
+            val = ERL_FLOAT_VALUE(value);
+            memcpy(bind[i].buffer, &val, *bind[i].length);
           } else if (strncmp(t, CHAR_SQL, strlen(CHAR_SQL)) == 0) {
+            char *val;
+
             bind[i].buffer_type = MYSQL_TYPE_STRING;
             *bind[i].length = bind[i].buffer_length * sizeof(char *);
             bind[i].buffer = malloc(*bind[i].length);
-            memcpy(bind[i].buffer, value, sizeof(char));
+            memset(bind[i].buffer, 0, *bind[i].length);
+
+            val = erl_iolist_to_string(value);
+            if (val) {
+              memcpy(bind[i].buffer, val, *bind[i].length);
+              free(val);
+            }
           } else if (strncmp(t, VARCHAR_SQL, strlen(VARCHAR_SQL)) == 0) {
+            char *val;
+
             bind[i].buffer_type = MYSQL_TYPE_BLOB;
             *bind[i].length = bind[i].buffer_length * sizeof(char *);
             bind[i].buffer = malloc(*bind[i].length);
-            memcpy(bind[i].buffer, value, sizeof(char));
+            memset(bind[i].buffer, 0, *bind[i].length);
+
+            val = erl_iolist_to_string(value);
+            if (val) {
+              memcpy(bind[i].buffer, val, *bind[i].length);
+              free(val);
+            }
           } else {
             logmsg("ERROR: Unknown sized type: {%s, %d}", t,
                    bind[i].buffer_length);
@@ -346,14 +380,21 @@ handle_param_query(ETERM *msg)
           t = (char *)ERL_ATOM_PTR(type);
           if (strncmp(t, TIMESTAMP_SQL, strlen(TIMESTAMP_SQL)) == 0) {
             bind[i].buffer_type = MYSQL_TYPE_TIMESTAMP;
-            *bind[i].length = sizeof(int);
+            *bind[i].length = sizeof(MYSQL_TIME);
             bind[i].buffer = malloc(*bind[i].length);
-            memcpy(bind[i].buffer, value, sizeof(MYSQL_TYPE_TIMESTAMP));
+            memset(bind[i].buffer, 0, *bind[i].length);
+
+            memcpy(bind[i].buffer, value, *bind[i].length);
           } else if (strncmp(t, INTEGER_SQL, strlen(INTEGER_SQL)) == 0) {
+            int val;
+
             bind[i].buffer_type = MYSQL_TYPE_LONG;
             *bind[i].length = sizeof(int);
             bind[i].buffer = malloc(*bind[i].length);
-            memcpy(bind[i].buffer, value, sizeof(int));
+            memset(bind[i].buffer, 0, *bind[i].length);
+
+            val = ERL_INT_VALUE(value);
+            memcpy(bind[i].buffer, &val, *bind[i].length);
           } else {
             logmsg("ERROR: Unknown type: %s", t);
             exit(3);
