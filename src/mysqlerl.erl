@@ -8,7 +8,7 @@
 
 -export([convert_type/1]).
 
--export([test_start/0, test_msg/0, test_query/0]).
+-export([test_start/0, test_msg/0, test_query/0, test_param_query/0]).
 
 -export([start/0, start/1, stop/0, commit/2, commit/3,
          connect/6, disconnect/1, describe_table/2,
@@ -31,6 +31,11 @@ test_msg() ->
 test_query() ->
     sql_query(mysqlerl_connection_sup:random_child(),
               "SELECT COUNT(*) FROM user", 2000).
+
+test_param_query() ->
+    param_query(mysqlerl_connection_sup:random_child(),
+               "SELECT * FROM user WHERE username=?",
+               [{{sql_varchar, 20}, "bjc"}]).
 
 start() ->
     start(temporary).
