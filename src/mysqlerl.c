@@ -290,14 +290,20 @@ handle_param_query(ETERM *msg)
       }
       memset(bind, 0, param_count * sizeof(MYSQL_BIND));
 
-      for (i = 0, tmp = params, p = erl_hd(tmp);
-           p != NULL;
+      for (i = 0, tmp = params;
+           (p = erl_hd(tmp)) != NULL && i < 1000;
            i++, tmp = erl_tl(tmp)) {
         ETERM *type, *values, *v;
 
-        type = erl_element(1, tmp);
-        values = erl_element(2, tmp);
+        type = erl_element(1, p);
+        values = erl_element(2, p);
         v = erl_hd(values);
+
+        fprintf(stderr, "type: ");
+        erl_print_term(stderr, type);
+        fprintf(stderr, "\nv: ");
+        erl_print_term(stderr, values);
+        fprintf(stderr, "\n");
 
         if (ERL_IS_TUPLE(type)) {
           ETERM *t_type, *t_size;
@@ -372,6 +378,7 @@ handle_param_query(ETERM *msg)
         erl_free_term(values);
         erl_free_term(type);
       }
+      erl_free_term(params);
 
       if (mysql_stmt_bind_param(sth, bind)) {
         resp = erl_format("{error, {mysql_error, ~i, ~s}}",
