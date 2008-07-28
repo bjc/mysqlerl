@@ -1,9 +1,11 @@
 ERLINTERFACE = 	erl_interface-3.5.5.3
+MYSQLINC =	/opt/local/include/mysql5/mysql
+MYSQLLIB =	/opt/local/lib/mysql5/mysql
 
-CFLAGS =	-I/usr/local/mysql/include \
+CFLAGS =	-I$(MYSQLINC) \
 		-I$(HOME)/lib/erlang/lib/$(ERLINTERFACE)/include \
 		-O2 -g -Wall -Werror
-LDFLAGS =	-L/usr/local/mysql/lib \
+LDFLAGS =	-L$(MYSQLLIB) \
 		-L$(HOME)/lib/erlang/lib/$(ERLINTERFACE)/lib \
 		-lerl_interface -lei
 EFLAGS =	-W +debug_info
@@ -14,7 +16,8 @@ BEAMDIR =	../ebin
 BINS =		$(PRIVDIR)/mysqlerl $(BEAMDIR)/mysqlerl.app
 MYSQLERLOBJS =	io.o log.o msg.o mysqlerl.o
 BEAMS =		mysqlerl.beam mysqlerl_app.beam mysqlerl_connection.beam \
-		mysqlerl_connection_sup.beam
+		mysqlerl_connection_sup.beam mysqlerl_port.beam          \
+		mysqlerl_port_sup.beam mysqlerl_sup.beam
 LIBS =		-lmysqlclient
 
 all:	$(PRIVDIR) $(BEAMDIR) $(BINS)
