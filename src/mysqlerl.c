@@ -12,6 +12,7 @@
 #include <mysql.h>
 #include <string.h>
 
+const char *CONNECT_MSG      = "connect";
 const char *QUERY_MSG        = "sql_query";
 const char *PARAM_QUERY_MSG  = "sql_param_query";
 const char *SELECT_COUNT_MSG = "sql_select_count";
@@ -423,33 +424,27 @@ void
 dispatch_db_cmd(MYSQL *dbh, ETERM *msg)
 {
   ETERM *tag;
+  char *tag_name;
 
   tag = erl_element(1, msg);
-  if (strncmp((char *)ERL_ATOM_PTR(tag),
-              QUERY_MSG, strlen(QUERY_MSG)) == 0) {
+  tag_name = (char *)ERL_ATOM_PTR(tag);
+  if (strncmp(tag_name, QUERY_MSG, strlen(QUERY_MSG)) == 0)
     handle_query(dbh, msg);
-  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
-                     PARAM_QUERY_MSG, strlen(PARAM_QUERY_MSG)) == 0) {
+  else if (strncmp(tag_name, PARAM_QUERY_MSG, strlen(PARAM_QUERY_MSG)) == 0)
     handle_param_query(dbh, msg);
-  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
-                     SELECT_COUNT_MSG, strlen(SELECT_COUNT_MSG)) == 0) {
+  else if (strncmp(tag_name, SELECT_COUNT_MSG, strlen(SELECT_COUNT_MSG)) == 0)
     handle_select_count(dbh, msg);
-  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
-                     SELECT_MSG, strlen(SELECT_MSG)) == 0) {
+  else if (strncmp(tag_name, SELECT_MSG, strlen(SELECT_MSG)) == 0)
     handle_select(dbh, msg);
-  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
-                     FIRST_MSG, strlen(FIRST_MSG)) == 0) {
+  else if (strncmp(tag_name, FIRST_MSG, strlen(FIRST_MSG)) == 0)
     handle_first(dbh, msg);
-  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
-                     LAST_MSG, strlen(LAST_MSG)) == 0) {
+  else if (strncmp(tag_name, LAST_MSG, strlen(LAST_MSG)) == 0)
     handle_last(dbh, msg);
-  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
-                     NEXT_MSG, strlen(NEXT_MSG)) == 0) {
+  else if (strncmp(tag_name, NEXT_MSG, strlen(NEXT_MSG)) == 0)
     handle_next(dbh, msg);
-  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
-                     PREV_MSG, strlen(PREV_MSG)) == 0) {
+  else if (strncmp(tag_name, PREV_MSG, strlen(PREV_MSG)) == 0)
     handle_prev(dbh, msg);
-  } else {
+  else {
     logmsg("WARNING: message type %s unknown.", (char *)ERL_ATOM_PTR(tag));
     erl_free_term(tag);
     exit(3);
