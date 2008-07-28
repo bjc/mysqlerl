@@ -1,13 +1,13 @@
 ERLINTERFACE = 	erl_interface-3.5.5.3
-MYSQLINC =	/opt/local/include/mysql5/mysql
-MYSQLLIB =	/opt/local/lib/mysql5/mysql
-
-CFLAGS =	-I$(MYSQLINC) \
-		-I$(HOME)/lib/erlang/lib/$(ERLINTERFACE)/include \
-		-O2 -g -Wall -Werror
-LDFLAGS =	-L$(MYSQLLIB) \
-		-L$(HOME)/lib/erlang/lib/$(ERLINTERFACE)/lib \
+ERLINCS =	-I$(HOME)/lib/erlang/lib/$(ERLINTERFACE)/include
+ERLLIBS =	-L$(HOME)/lib/erlang/lib/$(ERLINTERFACE)/lib \
 		-lerl_interface -lei
+
+MYSQLINCS =	-I/opt/local/include/mysql5/mysql
+MYSQLLIBS =	-L/opt/local/lib/mysql5/mysql -lmysqlclient
+
+CFLAGS =	-O2 -g -Wall -Werror $(MYSQLINCS) $(ERLINCS)
+LDFLAGS =	$(MYSQLLIBS) $(ERLLIBS)
 EFLAGS =	-W +debug_info
 
 PRIVDIR =	../priv
@@ -18,7 +18,6 @@ MYSQLERLOBJS =	io.o log.o msg.o mysqlerl.o
 BEAMS =		mysqlerl.beam mysqlerl_app.beam mysqlerl_connection.beam \
 		mysqlerl_connection_sup.beam mysqlerl_port.beam          \
 		mysqlerl_port_sup.beam mysqlerl_sup.beam
-LIBS =		-lmysqlclient
 
 all:	$(PRIVDIR) $(BEAMDIR) $(BINS)
 
@@ -30,7 +29,7 @@ clean:
 	erlc $(EFLAGS) $<
 
 $(PRIVDIR)/mysqlerl: $(PRIVDIR) $(MYSQLERLOBJS)
-	$(CC) -o $@ $(LDFLAGS) $(MYSQLERLOBJS) $(LIBS)
+	$(CC) -o $@ $(MYSQLERLOBJS) $(LDFLAGS)
 
 $(BEAMDIR)/mysqlerl.app: $(BEAMDIR) $(BEAMS)
 	cp $(BEAMS) $(BEAMDIR)
