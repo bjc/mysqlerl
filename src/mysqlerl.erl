@@ -33,6 +33,8 @@ test_query() ->
               "SELECT COUNT(*) FROM user", 2000).
 
 test_param_query() ->
+    %% This should really be an update or something, since that's how
+    %% it'll be used.
     param_query(mysqlerl_connection_sup:random_child(),
                "SELECT * FROM user WHERE username=?",
                [{{sql_varchar, 20}, ["bjc"]}]).
