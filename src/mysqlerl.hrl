@@ -1,3 +1,4 @@
+-record(sql_connect, {host, port, database, user, password, options}).
 -record(sql_query, {q}).
 -record(sql_param_query, {q, params}).
 -record(sql_select_count, {q}).

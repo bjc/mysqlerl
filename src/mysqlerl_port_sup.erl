@@ -3,14 +3,16 @@
 
 -behavior(supervisor).
 
--export([start_link/1]).
+-export([start_link/7]).
 -export([init/1]).
 
-start_link(Cmd) ->
-    supervisor:start_link(?MODULE, [Cmd]).
+start_link(Cmd, Host, Port, Database, User, Password, Options) ->
+    supervisor:start_link(?MODULE, [Cmd, Host, Port, Database,
+                                    User, Password, Options]).
 
-init([Cmd]) ->
-    Port = {mysqlerl_port, {mysqlerl_port, start_link, [Cmd]},
+init([Cmd, Host, Port, Database, User, Password, Options]) ->
+    Ref = {mysqlerl_port, {mysqlerl_port, start_link,
+                            [Cmd, Host, Port, Database,
+                             User, Password, Options]},
             transient, 5, worker, [mysqlerl_port]},
-    {ok, {{one_for_one, 10, 5},
-          [Port]}}.
+    {ok, {{one_for_one, 10, 5}, [Ref]}}.

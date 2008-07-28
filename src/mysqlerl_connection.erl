@@ -23,10 +23,8 @@ stop(Pid) ->
 init([Owner, Host, Port, Database, User, Password, Options]) ->
     process_flag(trap_exit, true),
     link(Owner),
-    Cmd = lists:flatten(io_lib:format("~s ~s ~w ~s ~s ~s ~s",
-                                      [helper(), Host, Port, Database,
-                                       User, Password, Options])),
-    {ok, Sup} = mysqlerl_port_sup:start_link(Cmd),
+    {ok, Sup} = mysqlerl_port_sup:start_link(helper(), Host, Port, Database,
+                                             User, Password, Options),
     {ok, #state{sup = Sup, owner = Owner}}.
 
 terminate(Reason, _State) ->
