@@ -12,6 +12,9 @@
 #include <mysql.h>
 #include <string.h>
 
+const int TRUTHY = 1;
+const int FALSY  = 0;
+
 const char *CONNECT_MSG      = "sql_connect";
 const char *QUERY_MSG        = "sql_query";
 const char *PARAM_QUERY_MSG  = "sql_param_query";
@@ -306,26 +309,32 @@ handle_param_query(ETERM *msg)
 
           t_type = erl_element(1, type);
           t = (char *)ERL_ATOM_PTR(t_type);
+          bind[i].length = malloc(sizeof(unsigned long));
           if (strncmp(t, NUMERIC_SQL, strlen(NUMERIC_SQL)) == 0) {
             bind[i].buffer_type = MYSQL_TYPE_LONG;
-            bind[i].buffer = NULL;
-            bind[i].length = 0;
+            *bind[i].length = bind[i].buffer_length * sizeof(int);
+            bind[i].buffer = malloc(*bind[i].length);
+            memcpy(bind[i].buffer, v, sizeof(int));
           } else if (strncmp(t, DECIMAL_SQL, strlen(DECIMAL_SQL)) == 0) {
             bind[i].buffer_type = MYSQL_TYPE_STRING;
-            bind[i].buffer = NULL;
-            bind[i].length = 0;
+            *bind[i].length = bind[i].buffer_length * sizeof(char *);
+            bind[i].buffer = malloc(*bind[i].length);
+            memcpy(bind[i].buffer, v, sizeof(char));
           } else if (strncmp(t, FLOAT_SQL, strlen(FLOAT_SQL)) == 0) {
             bind[i].buffer_type = MYSQL_TYPE_FLOAT;
-            bind[i].buffer = NULL;
-            bind[i].length = 0;
+            *bind[i].length = bind[i].buffer_length * sizeof(float);
+            bind[i].buffer = malloc(*bind[i].length);
+            memcpy(bind[i].buffer, v, sizeof(float));
           } else if (strncmp(t, CHAR_SQL, strlen(CHAR_SQL)) == 0) {
             bind[i].buffer_type = MYSQL_TYPE_STRING;
-            bind[i].buffer = NULL;
-            bind[i].length = 0;
+            *bind[i].length = bind[i].buffer_length * sizeof(char *);
+            bind[i].buffer = malloc(*bind[i].length);
+            memcpy(bind[i].buffer, v, sizeof(char));
           } else if (strncmp(t, VARCHAR_SQL, strlen(VARCHAR_SQL)) == 0) {
             bind[i].buffer_type = MYSQL_TYPE_BLOB;
-            bind[i].buffer = NULL;
-            bind[i].length = 0;
+            *bind[i].length = bind[i].buffer_length * sizeof(char *);
+            bind[i].buffer = malloc(*bind[i].length);
+            memcpy(bind[i].buffer, v, sizeof(char));
           } else {
             logmsg("ERROR: Unknown sized type: {%s, %d}", t,
                    bind[i].buffer_length);
@@ -338,12 +347,14 @@ handle_param_query(ETERM *msg)
           t = (char *)ERL_ATOM_PTR(type);
           if (strncmp(t, TIMESTAMP_SQL, strlen(TIMESTAMP_SQL)) == 0) {
             bind[i].buffer_type = MYSQL_TYPE_TIMESTAMP;
-            bind[i].buffer = NULL;
-            bind[i].length = 0;
+            *bind[i].length = sizeof(int);
+            bind[i].buffer = malloc(*bind[i].length);
+            memcpy(bind[i].buffer, v, sizeof(MYSQL_TYPE_TIMESTAMP));
           } else if (strncmp(t, INTEGER_SQL, strlen(INTEGER_SQL)) == 0) {
             bind[i].buffer_type = MYSQL_TYPE_LONG;
-            bind[i].buffer = NULL;
-            bind[i].length = 0;
+            *bind[i].length = sizeof(int);
+            bind[i].buffer = malloc(*bind[i].length);
+            memcpy(bind[i].buffer, v, sizeof(int));
           } else {
             logmsg("ERROR: Unknown type: %s", t);
             exit(3);
@@ -354,9 +365,9 @@ handle_param_query(ETERM *msg)
         if (ERL_IS_ATOM(v)
             && strncmp((char *)ERL_ATOM_PTR(v),
                        NULL_SQL, strlen(NULL_SQL)) == 0)
-          *bind[i].is_null = 1;
+          memcpy(bind[i].is_null, &TRUTHY, sizeof(int));
         else
-          *bind[i].is_null = 0;
+          memcpy(bind[i].is_null, &FALSY, sizeof(int));
 
         erl_free_term(values);
         erl_free_term(type);
