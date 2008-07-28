@@ -27,13 +27,14 @@ MYSQL_RES *results = NULL;
 my_ulonglong resultoffset = 0, numrows = 0;
 
 void
-set_mysql_results(MYSQL_RES *res)
+set_mysql_results()
 {
   if (results)
     mysql_free_result(results);
-  results = res;
+  results = mysql_store_result(&dbh);
+
   resultoffset = 0;
-  numrows = mysql_num_rows(results);
+  numrows = results ? mysql_num_rows(results) : 0;
 }
 
 ETERM *
@@ -208,7 +209,7 @@ handle_query(ETERM *cmd)
     resp = erl_format("{error, {mysql_error, ~i, ~s}}",
                       mysql_errno(&dbh), mysql_error(&dbh));
   } else {
-    set_mysql_results(mysql_store_result(&dbh));
+    set_mysql_results();
     if (results) {
       resp = handle_mysql_result(results);
       set_mysql_results(NULL);
@@ -275,7 +276,7 @@ handle_select_count(ETERM *msg)
     resp = erl_format("{error, {mysql_error, ~i, ~s}}",
                       mysql_errno(&dbh), mysql_error(&dbh));
   } else {
-    set_mysql_results(mysql_store_result(&dbh));
+    set_mysql_results();
     if (results) {
       resp = erl_format("{ok, ~i}", numrows);
     } else {
