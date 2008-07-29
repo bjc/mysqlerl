@@ -6,7 +6,7 @@ ERLLIBS =	-L$(HOME)/lib/erlang/lib/$(ERLINTERFACE)/lib \
 MYSQLINCS =	-I/opt/local/include/mysql5/mysql
 MYSQLLIBS =	-L/opt/local/lib/mysql5/mysql -lmysqlclient
 
-CFLAGS =	-O2 -g -Wall -Werror $(MYSQLINCS) $(ERLINCS)
+CFLAGS =	-g -Wall -Werror $(MYSQLINCS) $(ERLINCS)
 LDFLAGS =	$(MYSQLLIBS) $(ERLLIBS)
 EFLAGS =	-W +debug_info
 
