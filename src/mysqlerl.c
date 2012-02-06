@@ -223,8 +223,8 @@ handle_query(ETERM *cmd)
   } else {
     set_mysql_results();
     if (results) {
-      resp = handle_mysql_result(results);
-      set_mysql_results(NULL);
+      resp = handle_mysql_result();
+      set_mysql_results();
     } else {
       if (mysql_field_count(&dbh) == 0)
         resp = erl_format("{updated, ~i}", mysql_affected_rows(&dbh));
@@ -424,8 +424,8 @@ handle_param_query(ETERM *msg)
         } else {
           set_mysql_results();
           if (results) {
-            resp = handle_mysql_result(results);
-            set_mysql_results(NULL);
+            resp = handle_mysql_result();
+            set_mysql_results();
           } else {
             if (mysql_field_count(&dbh) == 0)
               resp = erl_format("{updated, ~i}", mysql_affected_rows(&dbh));
@@ -506,9 +506,8 @@ handle_select(ETERM *msg)
 
   num_fields   = mysql_num_fields(results);
   fields       = mysql_fetch_fields(results);
-  resultoffset = pos - 1;
-  if (resultoffset < 0)
-    resultoffset = 0;
+  if (resultoffset > 0)
+    resultoffset = pos - 1;
   if (num_items > numrows - resultoffset)
     num_items = numrows - resultoffset;
   mysql_data_seek(results, resultoffset);
