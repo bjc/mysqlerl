@@ -46,7 +46,7 @@ logmsg(const char *format, ...)
       (void)fprintf(out, "LOGERROR - Failed to parse time (now: %d): ",
                     (int)now_time);
     } else {
-      (void)fprintf(out, timebuf);
+      (void)fprintf(out, "%s", timebuf);
     }
   }
   (void)fprintf(out, "[%d]: ", getpid());
