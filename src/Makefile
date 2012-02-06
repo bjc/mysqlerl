@@ -5,8 +5,8 @@ ERLLIBS =	-L$(ERLPREFIX)/lib/erlang/lib/$(ERLINTERFACE)/lib \
 		-lerl_interface -lei
 
 MYSQLPREFIX =	/usr/local/mysql
-MYSQLINCS =	-I/$(MYSQLPREFIX)/include
-MYSQLLIBS =	-L/$(MYSQLPREFIX)/lib -lmysqlclient
+MYSQLINCS =	-I$(MYSQLPREFIX)/include
+MYSQLLIBS =	-L$(MYSQLPREFIX)/lib -lmysqlclient
 
 CFLAGS =	-g -Wall -Werror $(MYSQLINCS) $(ERLINCS)
 LDFLAGS =	$(MYSQLLIBS) $(ERLLIBS)
