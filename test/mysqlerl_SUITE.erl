@@ -39,7 +39,7 @@ init_per_suite(Config) ->
 %% @end
 %%--------------------------------------------------------------------
 end_per_suite(_Config) ->
-    ok = application:start(mysqlerl),
+    ok = application:stop(mysqlerl),
     os:cmd("mysqladmin -uroot drop mysqlerl_test"),
     ok.
 
@@ -128,6 +128,9 @@ app_starts(_Config) ->
 app_stops(_Config) ->
     ok = application:start(mysqlerl).
 
-connect(_Config) ->
-    ok = mysqlerl:connect("localhost", undefined, "mysqlerl_test", "root",
-			  undefined, []).
+connect(Config) ->
+    DBInfo = ct:get_config(db_info),
+    ok = mysqlerl:connect(?config(host, DBInfo), ?config(port, DBInfo),
+			  ?config(name, DBInfo), ?config(username, DBInfo),
+			  ?config(password, DBInfo), ?config(options, DBInfo)),
+    {comment, "Connected successfully"}.

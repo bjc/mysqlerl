@@ -1,10 +1,10 @@
 .PHONY:	all install test
 
 all:
-	@@cd lib/src && make all
+	@@cd src && make all
 
 install:
-	@@cd lib/src && make install
+	@@cd src && make install
 
-test:
-	@@cd lib/test && make test
+test:	all
+	@@cd test && make test
