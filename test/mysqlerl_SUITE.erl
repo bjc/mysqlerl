@@ -21,6 +21,30 @@ suite() ->
     [{timetrap,{seconds,30}},
      {require, db_info}].
 
+mysql_cmd(undefined, undefined) ->
+    "mysql";
+mysql_cmd(User, undefined) ->
+    io_lib:format("mysql -u'~s'", [User]);
+mysql_cmd(undefined, Pass) ->
+    io_lib:format("mysql -p'~s'", [Pass]);
+mysql_cmd(User, Pass) ->
+    io_lib:format("mysql -u'~s' -p'~s'", [User, Pass]).
+
+create_db(User, Pass, Name) ->
+    drop_db(User, Pass, Name),
+    SQL = io_lib:format("CREATE DATABASE ~s", [Name]),
+    CMD = mysql_cmd(User, Pass),
+    os:cmd(io_lib:format("echo '~s' | ~s", [SQL, CMD])).
+
+drop_db(User, Pass, Name) ->
+    SQL = io_lib:format("DROP DATABASE IF EXISTS ~s", [Name]),
+    CMD = mysql_cmd(User, Pass),
+    os:cmd(io_lib:format("echo '~s' | ~s", [SQL, CMD])).
+
+create_table(User, Pass, Name, DataDir) ->
+    CMD = mysql_cmd(User, Pass),
+    os:cmd(io_lib:format("~s ~s < ~s/table-data.sql", [CMD, Name, DataDir])).
+
 %%--------------------------------------------------------------------
 %% @spec init_per_suite(Config0) ->
 %%     Config1 | {skip,Reason} | {skip_and_save,Reason,Config1}
@@ -29,8 +53,15 @@ suite() ->
 %% @end
 %%--------------------------------------------------------------------
 init_per_suite(Config) ->
+    DBInfo  = ct:get_config(db_info),
+    DataDir = ?config(data_dir, Config),
+    User    = ?config(username, DBInfo),
+    Pass    = ?config(password, DBInfo),
+    Name    = ?config(name, DBInfo),
+
+    create_db(User, Pass, Name),
+    create_table(User, Pass, Name, DataDir),
     ok = application:start(mysqlerl),
-    os:cmd("mysqladmin -uroot create mysqlerl_test"),
     Config.
 
 %%--------------------------------------------------------------------
@@ -39,9 +70,13 @@ init_per_suite(Config) ->
 %% @end
 %%--------------------------------------------------------------------
 end_per_suite(_Config) ->
+    DBInfo = ct:get_config(db_info),
+    User   = ?config(username, DBInfo),
+    Pass   = ?config(password, DBInfo),
+    Name   = ?config(name, DBInfo),
+
     ok = application:stop(mysqlerl),
-    os:cmd("mysqladmin -uroot drop mysqlerl_test"),
-    ok.
+    drop_db(User, Pass, Name).
 
 %%--------------------------------------------------------------------
 %% @spec init_per_group(GroupName, Config0) ->
@@ -73,7 +108,14 @@ end_per_group(_GroupName, _Config) ->
 %% @end
 %%--------------------------------------------------------------------
 init_per_testcase(_TestCase, Config) ->
-    Config.
+    DBInfo = ct:get_config(db_info),
+    {ok, DBRef} = mysqlerl:connect(?config(host, DBInfo),
+				   ?config(port, DBInfo),
+				   ?config(name, DBInfo),
+				   ?config(username, DBInfo),
+				   ?config(password, DBInfo),
+				   ?config(options, DBInfo)),
+    [{db_ref, DBRef} | Config].
 
 %%--------------------------------------------------------------------
 %% @spec end_per_testcase(TestCase, Config0) ->
@@ -83,8 +125,8 @@ init_per_testcase(_TestCase, Config) ->
 %% Reason = term()
 %% @end
 %%--------------------------------------------------------------------
-end_per_testcase(_TestCase, _Config) ->
-    ok.
+end_per_testcase(_TestCase, Config) ->
+    ok = mysqlerl:disconnect(?config(db_ref, Config)).
 
 %%--------------------------------------------------------------------
 %% @spec groups() -> [Group]
@@ -100,7 +142,14 @@ end_per_testcase(_TestCase, _Config) ->
 %% @end
 %%--------------------------------------------------------------------
 groups() ->
-    [].
+    [{all, [sequence],
+      [{group, read_queries}, {group, cursor}]},
+     {read_queries, [shuffle],
+      [describe_table, sql_query, param_query, select_count]},
+     {cursor, [sequence],
+      [select, first, last, next, prev]},
+     {trans, [sequence],
+      [commit, rollback]}].
 
 %%--------------------------------------------------------------------
 %% @spec all() -> GroupsAndTestCases | {skip,Reason}
@@ -111,7 +160,7 @@ groups() ->
 %% @end
 %%--------------------------------------------------------------------
 all() -> 
-    [connect].
+    [{group, all}].
 
 %%--------------------------------------------------------------------
 %% @spec TestCase(Config0) ->
@@ -128,9 +177,60 @@ app_starts(_Config) ->
 app_stops(_Config) ->
     ok = application:start(mysqlerl).
 
-connect(Config) ->
-    DBInfo = ct:get_config(db_info),
-    ok = mysqlerl:connect(?config(host, DBInfo), ?config(port, DBInfo),
-			  ?config(name, DBInfo), ?config(username, DBInfo),
-			  ?config(password, DBInfo), ?config(options, DBInfo)),
-    {comment, "Connected successfully"}.
+describe_table(Config) ->
+    io:format("describe_table ~p", [Config]),
+    {ok, Description} = mysqlerl:describe_table(?config(db_ref, Config),
+						"user"),
+    [{"username", {sql_varchar, 20}}, {"password", {sql_varchar, 64}}] = Description.
+
+sql_query(Config) ->
+    {selected, Cols, Rows} = mysqlerl:sql_query(?config(db_ref, Config),
+						"SELECT username FROM user"),
+    ["username"] = Cols,
+    [{"bjc"}, {"siobain"}] = Rows.
+
+param_query(Config) ->
+    {selected, Cols, Rows} = mysqlerl:param_query(?config(db_ref, Config),
+						  "SELECT username FROM user WHERE username=?",
+						  [{{sql_varchar, 20}, "bjc"}]),
+    ["username"] = Cols,
+    [{"bjc"}] = Rows.
+
+select_count(Config) ->
+    {ok, 2} = mysqlerl:select_count(?config(db_ref, Config),
+				    "SELECT username FROM user").
+
+select(Config) ->
+    {selected, Cols, Rows} = mysqlerl:select(?config(db_ref, Config),
+					     {absolute, 1}, 1),
+    ["username", "password"] = Cols,
+    [{"bjc", _}] = Rows.
+
+first(Config) -> 
+    {selected, Cols, Rows} = mysqlerl:first(?config(db_ref, Config)),
+    ["username", "password"] = Cols,
+    [{"bjc", _}] = Rows.
+
+last(Config) ->
+    {selected, Cols, Rows} = mysqlerl:last(?config(db_ref, Config)),
+    ["username", "password"] = Cols,
+    [{"siobain", _}] = Rows.
+
+next(Config) ->
+    {selected, Cols, Rows} = mysqlerl:next(?config(db_ref, Config)),
+    ["username", "password"] = Cols,
+    [username, password] = Cols,
+    [{"siobain", _}] = Rows.
+
+prev(Config) ->
+    {selected, Cols, Rows} = mysqlerl:prev(?config(db_ref, Config)),
+    ["username", "password"] = Cols,
+    [{"bjc", _}] = Rows.
+
+commit(Config) ->
+    ok = mysqlerl:commit(?config(db_ref, Config), commit),
+    {skip, "Not implemented"}.
+
+rollback(Config) ->
+    ok = mysqlerl:rollback(?config(db_ref, Config), rollback),
+    {skip, "Not implemented"}.
