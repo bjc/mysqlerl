@@ -8,8 +8,6 @@
 
 -export([convert_type/1]).
 
--export([test_start/0, test_msg/0, test_query/0, test_param_query/0]).
-
 -export([start/0, start/1, stop/0, commit/2, commit/3,
          connect/6, disconnect/1, describe_table/2,
          describe_table/3, first/1, first/2,
@@ -17,27 +15,6 @@
          prev/2, select_count/2, select_count/3,
          select/3, select/4, param_query/3, param_query/4,
          sql_query/2, sql_query/3]).
-
--define(CONFIG, "/Users/bjc/tmp/test-server.cfg").
-
-test_start() ->
-    {ok, [{Host, Port, DB, User, Pass, Options}]} = file:consult(?CONFIG),
-    mysqlerl:connect(Host, Port, DB, User, Pass, Options).
-
-test_msg() ->
-    commit(mysqlerl_connection_sup:random_child(),
-           rollback, 2000).
-
-test_query() ->
-    sql_query(mysqlerl_connection_sup:random_child(),
-              "SELECT COUNT(*) FROM user", 2000).
-
-test_param_query() ->
-    %% This should really be an update or something, since that's how
-    %% it'll be used.
-    param_query(mysqlerl_connection_sup:random_child(),
-               "SELECT * FROM user WHERE username=?",
-               [{{sql_varchar, 20}, "bjc"}]).
 
 start() ->
     start(temporary).
