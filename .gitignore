@@ -2,6 +2,9 @@
 *~
 *.o
 *.beam
-mysqlerl
-ebin/*
-priv/*
+lib/ebin/*
+lib/priv/*
+lib/test/*.html
+lib/test/*.css
+lib/test/ct_run.*
+lib/test/variables-ct*
