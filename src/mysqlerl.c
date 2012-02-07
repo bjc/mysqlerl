@@ -12,9 +12,6 @@
 #include <mysql.h>
 #include <string.h>
 
-const int TRUTHY = 1;
-const int FALSY  = 0;
-
 const char *CONNECT_MSG      = "sql_connect";
 const char *QUERY_MSG        = "sql_query";
 const char *PARAM_QUERY_MSG  = "sql_param_query";
@@ -33,6 +30,9 @@ const char *CHAR_SQL      = "sql_char";
 const char *VARCHAR_SQL   = "sql_varchar";
 const char *TIMESTAMP_SQL = "sql_timestamp";
 const char *INTEGER_SQL   = "sql_integer";
+
+my_bool TRUTHY = 1;
+my_bool FALSY  = 0;
 
 MYSQL dbh;
 MYSQL_RES *results = NULL;
@@ -224,7 +224,6 @@ handle_query(ETERM *cmd)
     set_mysql_results();
     if (results) {
       resp = handle_mysql_result();
-      set_mysql_results();
     } else {
       if (mysql_field_count(&dbh) == 0)
         resp = erl_format("{updated, ~i}", mysql_affected_rows(&dbh));
@@ -237,6 +236,34 @@ handle_query(ETERM *cmd)
 
   write_msg(resp);
   erl_free_term(resp);
+}
+
+int
+bind_string(MYSQL_BIND *bind, const ETERM *erl_value, unsigned long len)
+{
+  char *val;
+  unsigned long slen;
+
+  val = erl_iolist_to_string(erl_value);
+  if (!val) {
+    logmsg("DEBUG: bind_string val is NULL");
+    return -1;
+  }
+
+  slen = strlen(val);
+  logmsg("DEBUG: Storing BLOB(%lu) %s(%lu)", len, val, slen);
+
+  bind->buffer_type = MYSQL_TYPE_BLOB;
+  bind->buffer_length = len;
+
+  bind->length = malloc(sizeof(unsigned long));
+  memcpy(bind->length, &slen, sizeof(unsigned long));
+
+  bind->buffer = malloc((slen + 1) * sizeof(char));
+  memcpy(bind->buffer, val, slen);
+
+  free(val);
+  return 0;
 }
 
 /*
@@ -275,10 +302,12 @@ handle_param_query(ETERM *msg)
 
   sth = mysql_stmt_init(&dbh);
   if (mysql_stmt_prepare(sth, q, strlen(q))) {
+    logmsg("DEBUG: couldn't prepare statement.");
     resp = erl_format("{error, {mysql_error, ~i, ~s}}",
                       mysql_errno(&dbh), mysql_error(&dbh));
   } else {
     param_count = mysql_stmt_param_count(sth);
+    logmsg("DEBUG: expected_count: %d, got_count: %d", param_count, erl_length(params));
     if (param_count != erl_length(params)) {
       resp = erl_format("{error, {mysql_error, -1, [expected_params, %d, got_params, %d]}}", param_count, erl_length(params));
     } else {
@@ -299,11 +328,15 @@ handle_param_query(ETERM *msg)
         value = erl_element(2, p);
 
         if (ERL_IS_TUPLE(type)) {
+	  // Parameter Type + Size: {Type, Size}
           ETERM *t_type, *t_size;
           char *t;
+	  unsigned long size;
 
+	  logmsg("DEBUG: got tuple param no. %d.", i);
           t_size = erl_element(2, type);
-          bind[i].buffer_length = ERL_INT_VALUE(t_size);
+	  size = ERL_INT_VALUE(t_size);
+          bind[i].buffer_length = size;
           erl_free_term(t_size);
 
           t_type = erl_element(1, type);
@@ -312,8 +345,9 @@ handle_param_query(ETERM *msg)
           if (strncmp(t, NUMERIC_SQL, strlen(NUMERIC_SQL)) == 0) {
             int val;
 
+	    logmsg("DEBUG: param is numeric");
             bind[i].buffer_type = MYSQL_TYPE_LONG;
-            *bind[i].length = bind[i].buffer_length * sizeof(int);
+            *bind[i].length = sizeof(int);
             bind[i].buffer = malloc(*bind[i].length);
             memset(bind[i].buffer, 0, *bind[i].length);
 
@@ -322,8 +356,9 @@ handle_param_query(ETERM *msg)
           } else if (strncmp(t, DECIMAL_SQL, strlen(DECIMAL_SQL)) == 0) {
             char *val;
 
+	    logmsg("DEBUG: param is decimal");
             bind[i].buffer_type = MYSQL_TYPE_STRING;
-            *bind[i].length = bind[i].buffer_length * sizeof(char *);
+            *bind[i].length = bind[i].buffer_length * sizeof(char);
             bind[i].buffer = malloc(*bind[i].length);
             memset(bind[i].buffer, 0, *bind[i].length);
 
@@ -335,8 +370,9 @@ handle_param_query(ETERM *msg)
           } else if (strncmp(t, FLOAT_SQL, strlen(FLOAT_SQL)) == 0) {
             float val;
 
+	    logmsg("DEBUG: param is float");
             bind[i].buffer_type = MYSQL_TYPE_FLOAT;
-            *bind[i].length = bind[i].buffer_length * sizeof(float);
+            *bind[i].length = sizeof(float);
             bind[i].buffer = malloc(*bind[i].length);
             memset(bind[i].buffer, 0, *bind[i].length);
 
@@ -345,8 +381,9 @@ handle_param_query(ETERM *msg)
           } else if (strncmp(t, CHAR_SQL, strlen(CHAR_SQL)) == 0) {
             char *val;
 
+	    logmsg("DEBUG: param is string");
             bind[i].buffer_type = MYSQL_TYPE_STRING;
-            *bind[i].length = bind[i].buffer_length * sizeof(char *);
+            *bind[i].length = bind[i].buffer_length * sizeof(char);
             bind[i].buffer = malloc(*bind[i].length);
             memset(bind[i].buffer, 0, *bind[i].length);
 
@@ -356,18 +393,8 @@ handle_param_query(ETERM *msg)
               free(val);
             }
           } else if (strncmp(t, VARCHAR_SQL, strlen(VARCHAR_SQL)) == 0) {
-            char *val;
-
-            bind[i].buffer_type = MYSQL_TYPE_BLOB;
-            *bind[i].length = bind[i].buffer_length * sizeof(char *);
-            bind[i].buffer = malloc(*bind[i].length);
-            memset(bind[i].buffer, 0, *bind[i].length);
-
-            val = erl_iolist_to_string(value);
-            if (val) {
-              memcpy(bind[i].buffer, val, *bind[i].length);
-              free(val);
-            }
+	    logmsg("DEBUG: param is varchar");
+	    (void)bind_string(&bind[i], value, size);
           } else {
             logmsg("ERROR: Unknown sized type: {%s, %d}", t,
                    bind[i].buffer_length);
@@ -379,6 +406,7 @@ handle_param_query(ETERM *msg)
 
           t = (char *)ERL_ATOM_PTR(type);
           if (strncmp(t, TIMESTAMP_SQL, strlen(TIMESTAMP_SQL)) == 0) {
+	    logmsg("DEBUG: got timestamp param.");
             bind[i].buffer_type = MYSQL_TYPE_TIMESTAMP;
             *bind[i].length = sizeof(MYSQL_TIME);
             bind[i].buffer = malloc(*bind[i].length);
@@ -386,6 +414,7 @@ handle_param_query(ETERM *msg)
 
             memcpy(bind[i].buffer, value, *bind[i].length);
           } else if (strncmp(t, INTEGER_SQL, strlen(INTEGER_SQL)) == 0) {
+	    logmsg("DEBUG: got integer param.");
             int val;
 
             bind[i].buffer_type = MYSQL_TYPE_LONG;
@@ -401,32 +430,42 @@ handle_param_query(ETERM *msg)
           }
         }
 
-        bind[i].is_null = malloc(sizeof(int));
         if (ERL_IS_ATOM(value)
             && strncmp((char *)ERL_ATOM_PTR(value),
                        NULL_SQL, strlen(NULL_SQL)) == 0)
-          memcpy(bind[i].is_null, &TRUTHY, sizeof(int));
+	  bind[i].is_null = &TRUTHY;
         else
-          memcpy(bind[i].is_null, &FALSY, sizeof(int));
+	  bind[i].is_null = &FALSY;
 
         erl_free_term(value);
         erl_free_term(type);
       }
       erl_free_term(params);
 
+      logmsg("DEBUG: binding params");
       if (mysql_stmt_bind_param(sth, bind)) {
+	logmsg("DEBUG: failed binding params");
         resp = erl_format("{error, {mysql_error, ~i, ~s}}",
                           mysql_errno(&dbh), mysql_error(&dbh));
       } else {
+	logmsg("DEBUG: preparing cursor");
+	unsigned long stmt_type = CURSOR_TYPE_READ_ONLY;
+	unsigned long prefetch_rows = 5;
+	mysql_stmt_attr_set(sth, STMT_ATTR_CURSOR_TYPE, &stmt_type);
+	mysql_stmt_attr_set(sth, STMT_ATTR_PREFETCH_ROWS, &prefetch_rows);
+
+	logmsg("DEBUG: executing statement");
         if (mysql_stmt_execute(sth)) {
+	  logmsg("DEBUG: failed executing statement");
           resp = erl_format("{error, {mysql_error, ~i, ~s}}",
                             mysql_errno(&dbh), mysql_error(&dbh));
         } else {
           set_mysql_results();
           if (results) {
             resp = handle_mysql_result();
-            set_mysql_results();
           } else {
+	    logmsg("DEBUG: field count: %d", mysql_field_count(&dbh));
+	    logmsg("DEBUG: affected rows: %d", mysql_affected_rows(&dbh));
             if (mysql_field_count(&dbh) == 0)
               resp = erl_format("{updated, ~i}", mysql_affected_rows(&dbh));
             else
@@ -437,8 +476,8 @@ handle_param_query(ETERM *msg)
       }
 
       for (i = 0; i < param_count; i++) {
+	free(bind[i].length);
         free(bind[i].buffer);
-        free(bind[i].is_null);
       }
       free(bind);
     }
@@ -627,7 +666,7 @@ handle_prev(ETERM *msg)
 
   ecols = make_cols(fields, num_fields);
   logmsg("resultoffset: %d, num_rows: %d", resultoffset, numrows);
-  if (resultoffset == 0) {
+  if (resultoffset == 1) {
     resp = erl_format("{selected, ~w, []}", ecols);
   } else {
     resultoffset = resultoffset - 1;
