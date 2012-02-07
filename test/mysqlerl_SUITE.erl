@@ -12,6 +12,8 @@
 
 -include_lib("common_test/include/ct.hrl").
 
+-define(COLS, ["username", "password"]).
+
 %%--------------------------------------------------------------------
 %% @spec suite() -> Info
 %% Info = [tuple()]
@@ -146,8 +148,8 @@ groups() ->
       [{group, read_queries}, {group, cursor}]},
      {read_queries, [shuffle],
       [describe_table, sql_query, param_query, select_count]},
-     {cursor, [sequence],
-      [select, first, last, next, prev]},
+     {cursor, [shuffle],
+      [select, first, last, next, prev, next_after_last, prev_at_first]},
      {trans, [sequence],
       [commit, rollback]}].
 
@@ -184,16 +186,14 @@ describe_table(Config) ->
     [{"username", {sql_varchar, 20}}, {"password", {sql_varchar, 64}}] = Description.
 
 sql_query(Config) ->
-    {selected, Cols, Rows} = mysqlerl:sql_query(?config(db_ref, Config),
-						"SELECT username FROM user"),
-    ["username"] = Cols,
-    [{"bjc"}, {"siobain"}] = Rows.
+    {selected, ?COLS, Rows} = mysqlerl:sql_query(?config(db_ref, Config),
+						 "SELECT * FROM user"),
+    [{"bjc", _}, {"siobain", _}] = Rows.
 
 param_query(Config) ->
-    {selected, Cols, Rows} = mysqlerl:param_query(?config(db_ref, Config),
-						  "SELECT username FROM user WHERE username=?",
-						  [{{sql_varchar, 20}, "bjc"}]),
-    ["username"] = Cols,
+    {selected, ?COLS, Rows} = mysqlerl:param_query(?config(db_ref, Config),
+						   "SELECT * FROM user WHERE username=?",
+						   [{{sql_varchar, 20}, "bjc"}]),
     [{"bjc"}] = Rows.
 
 select_count(Config) ->
@@ -201,31 +201,40 @@ select_count(Config) ->
 				    "SELECT username FROM user").
 
 select(Config) ->
-    {selected, Cols, Rows} = mysqlerl:select(?config(db_ref, Config),
-					     {absolute, 1}, 1),
-    ["username", "password"] = Cols,
+    mysqlerl:sql_query(?config(db_ref, Config), "SELECT * FROM user"),
+    {selected, ?COLS, Rows} = mysqlerl:select(?config(db_ref, Config),
+					      1, 1),
     [{"bjc", _}] = Rows.
 
 first(Config) -> 
-    {selected, Cols, Rows} = mysqlerl:first(?config(db_ref, Config)),
-    ["username", "password"] = Cols,
+    mysqlerl:sql_query(?config(db_ref, Config), "SELECT * FROM user"),
+    {selected, ?COLS, Rows} = mysqlerl:first(?config(db_ref, Config)),
     [{"bjc", _}] = Rows.
 
 last(Config) ->
-    {selected, Cols, Rows} = mysqlerl:last(?config(db_ref, Config)),
-    ["username", "password"] = Cols,
+    mysqlerl:sql_query(?config(db_ref, Config), "SELECT * FROM user"),
+    {selected, ?COLS, Rows} = mysqlerl:last(?config(db_ref, Config)),
     [{"siobain", _}] = Rows.
 
 next(Config) ->
-    {selected, Cols, Rows} = mysqlerl:next(?config(db_ref, Config)),
-    ["username", "password"] = Cols,
-    [username, password] = Cols,
+    mysqlerl:sql_query(?config(db_ref, Config), "SELECT * FROM user"),
+    {selected, ?COLS, Rows} = mysqlerl:next(?config(db_ref, Config)),
     [{"siobain", _}] = Rows.
 
+next_after_last(Config) ->
+    mysqlerl:sql_query(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:last(?config(db_ref, Config)),
+    {selected, ?COLS, []} = mysqlerl:next(?config(db_ref, Config)).
+
 prev(Config) ->
-    {selected, Cols, Rows} = mysqlerl:prev(?config(db_ref, Config)),
-    ["username", "password"] = Cols,
+    mysqlerl:sql_query(?config(db_ref, Config), "SELECT * FROM user"),
+    {selected, ?COLS, Rows} = mysqlerl:prev(?config(db_ref, Config)),
     [{"bjc", _}] = Rows.
+
+prev_at_first(Config) ->
+    mysqlerl:sql_query(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:first(?config(db_ref, Config)),
+    {selected, ?COLS, []} = mysqlerl:prev(?config(db_ref, Config)).
 
 commit(Config) ->
     ok = mysqlerl:commit(?config(db_ref, Config), commit),
