@@ -18,7 +18,10 @@ start_link(Owner, Host, Port, Database, User, Password, Options) ->
                                     User, Password, Options], []).
 
 stop(Pid) ->
-    gen_server:call(Pid, stop).
+    case (catch gen_server:call(Pid, stop)) of
+        {'EXIT', _} -> ok;
+        Other       -> Other
+    end.
 
 init([Owner, Host, Port, Database, User, Password, Options]) ->
     process_flag(trap_exit, true),
