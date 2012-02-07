@@ -666,7 +666,7 @@ handle_prev(ETERM *msg)
 
   ecols = make_cols(fields, num_fields);
   logmsg("resultoffset: %d, num_rows: %d", resultoffset, numrows);
-  if (resultoffset == 1) {
+  if (resultoffset <= 1) {
     resp = erl_format("{selected, ~w, []}", ecols);
   } else {
     resultoffset = resultoffset - 1;
