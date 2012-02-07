@@ -1,7 +1,7 @@
 .PHONY:	test clean
 
 test:
-	ct_run -pa -dir . -config database.conf
+	ct_run -dir . -config database.conf
 
 clean:
 	rm -rf *.html
