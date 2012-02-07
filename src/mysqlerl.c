@@ -36,7 +36,8 @@ my_bool FALSY  = 0;
 
 MYSQL dbh;
 MYSQL_RES *results = NULL;
-my_ulonglong resultoffset = 0, numrows = 0;
+my_ulonglong numrows = 0;
+my_ulonglong resultoffset = 0; // The index of the next row to read.
 
 void
 set_mysql_results()
@@ -126,7 +127,6 @@ make_rows(unsigned int num_rows, unsigned int num_fields)
     MYSQL_ROW row;
 
     row = mysql_fetch_row(results);
-    resultoffset++;
     lengths = mysql_fetch_lengths(results);
 
     rt = make_row(row, lengths, num_fields);
@@ -155,6 +155,7 @@ handle_mysql_result()
 
   ecols = make_cols(fields, num_fields);
   erows = make_rows(numrows, num_fields);
+  resultoffset = numrows;
 
   resp = erl_format("{selected, ~w, ~w}", ecols, erows);
 
@@ -553,6 +554,7 @@ handle_select(ETERM *msg)
 
   ecols = make_cols(fields, num_fields);
   erows = make_rows(num_items, num_fields);
+  resultoffset += num_items;
   resp = erl_format("{selected, ~w, ~w}", ecols, erows);
   erl_free_term(erows);
 
@@ -574,10 +576,10 @@ handle_first(ETERM *msg)
     exit(2);
   }
 
-  num_fields   = mysql_num_fields(results);
-  fields       = mysql_fetch_fields(results);
-  resultoffset = 0;
+  num_fields = mysql_num_fields(results);
+  fields     = mysql_fetch_fields(results);
   mysql_data_seek(results, resultoffset);
+  resultoffset = 1;
 
   ecols = make_cols(fields, num_fields);
   erows = make_rows(1, num_fields);
@@ -602,10 +604,10 @@ handle_last(ETERM *msg)
     exit(2);
   }
 
-  num_fields   = mysql_num_fields(results);
-  fields       = mysql_fetch_fields(results);
-  resultoffset = numrows - 1;
-  mysql_data_seek(results, resultoffset);
+  num_fields = mysql_num_fields(results);
+  fields     = mysql_fetch_fields(results);
+  mysql_data_seek(results, numrows - 1);
+  resultoffset = numrows;
 
   ecols = make_cols(fields, num_fields);
   erows = make_rows(1, num_fields);
@@ -638,6 +640,8 @@ handle_next(ETERM *msg)
   if (resultoffset == numrows) {
     resp = erl_format("{selected, ~w, []}", ecols);
   } else {
+    mysql_data_seek(results, resultoffset);
+    resultoffset++;
     erows = make_rows(1, num_fields);
     resp = erl_format("{selected, ~w, ~w}", ecols, erows);
     erl_free_term(erows);
@@ -669,13 +673,9 @@ handle_prev(ETERM *msg)
   if (resultoffset <= 1) {
     resp = erl_format("{selected, ~w, []}", ecols);
   } else {
-    resultoffset = resultoffset - 1;
-    mysql_data_seek(results, resultoffset);
+    resultoffset--;
+    mysql_data_seek(results, resultoffset - 1);
     erows = make_rows(1, num_fields);
-
-    /* Rewind to position at the point we returned. */
-    resultoffset = resultoffset - 1;
-    mysql_data_seek(results, resultoffset);
     resp = erl_format("{selected, ~w, ~w}", ecols, erows);
     erl_free_term(erows);
   }
