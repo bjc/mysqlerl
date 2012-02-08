@@ -1,0 +1,12 @@
+* Tests
+** Code Coverage
+Check out http://www.erlang.org/doc/apps/common_test/cover_chapter.html
+** Transactions
+** Insert/Update/Replace/Delete Behavior
+Make sure affected_rows are returned properly and no cursor exists.
+** Bogus behavor
+Cursor stuff, only owners should be able to disconnect, more error
+response tuples returned to Erlang runtime.
+
+Check out a bunch of the logmsg("ERROR: ...") in the various C files,
+and pore over ODBC man page again.
