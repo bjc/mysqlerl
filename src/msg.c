@@ -16,8 +16,12 @@ read_msg()
   unsigned char *buf;
   msglen_t len;
 
-  logmsg("DEBUG: reading message length.");
   if (restartable_read((unsigned char *)&len, sizeof(len)) == -1) {
+    if (errno == 0) {
+      logmsg("INFO: got end of file from Erlang process, shutting down.");
+      exit(0);
+    }
+
     logmsg("ERROR: couldn't read %d byte message prefix: %s.",
            sizeof(len), strerror(errno));
 
@@ -33,7 +37,6 @@ read_msg()
     exit(2);
   }
 
-  logmsg("DEBUG: reading message body (len: %d).", len);
   if (restartable_read(buf, len) == -1) {
     logmsg("ERROR: couldn't read %d byte message: %s.",
            len, strerror(errno));

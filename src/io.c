@@ -25,8 +25,6 @@ restartable_read(unsigned char *buf, size_t buflen)
 
       return -1;
     } else if (readb == 0) {
-      logmsg("ERROR: EOF trying to read additional %d bytes from "
-             "standard input", buflen - rc);
       return -1;
     }
 
