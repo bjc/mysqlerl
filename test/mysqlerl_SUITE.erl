@@ -12,6 +12,7 @@
 
 -include_lib("common_test/include/ct.hrl").
 
+-define(Q, "SELECT username, password FROM user ORDER BY username ASC").
 -define(COLS, ["username", "password"]).
 
 %%--------------------------------------------------------------------
@@ -149,10 +150,10 @@ groups() ->
      {read_queries, [shuffle],
       [describe_table, sql_query, param_query, select_count]},
      {cursor, [shuffle],
-      [select, first, last, next, prev,
+      [first, last, next, prev,
        next_after_first, next_after_last, prev_after_first, prev_after_last,
        next_all, prev_all, next_prev_next, prev_next_prev,
-       select_relative, select_absolute]},
+       select_next, select_relative, select_absolute]},
      {trans, [sequence],
       [commit, rollback]}].
 
@@ -164,7 +165,7 @@ groups() ->
 %% Reason = term()
 %% @end
 %%--------------------------------------------------------------------
-all() -> 
+all() ->
     [{group, all}].
 
 %%--------------------------------------------------------------------
@@ -190,93 +191,101 @@ describe_table(Config) ->
 
 sql_query(Config) ->
     {selected, ?COLS, Rows} = mysqlerl:sql_query(?config(db_ref, Config),
-						 "SELECT * FROM user"),
+						 ?Q),
     [{"bjc", _}, {"siobain", _}] = Rows.
 
 param_query(Config) ->
     {selected, ?COLS, Rows} = mysqlerl:param_query(?config(db_ref, Config),
 						   "SELECT * FROM user WHERE username=?",
 						   [{{sql_varchar, 20}, "bjc"}]),
-    [{"bjc"}] = Rows.
+    [{"bjc", _}] = Rows.
 
 select_count(Config) ->
     {ok, 2} = mysqlerl:select_count(?config(db_ref, Config),
 				    "SELECT username FROM user").
 
-select(Config) ->
-    mysqlerl:sql_query(?config(db_ref, Config), "SELECT * FROM user"),
+select_next(Config) ->
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     {selected, ?COLS, Rows} = mysqlerl:select(?config(db_ref, Config),
-					      1, 1),
+					      next, 1),
     [{"bjc", _}] = Rows.
 
-select_absolute(_Config) ->
-    {skip, "Not implemented."}.
+select_absolute(Config) ->
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
+    mysqlerl:next(?config(db_ref, Config)),
+    {selected, ?COLS, Rows} = mysqlerl:select(?config(db_ref, Config),
+					      {absolute, 1}, 1),
+    [{"bjc", _}] = Rows.
 
-select_relative(_Config) ->
-    {skip, "Not implemented."}.
+select_relative(Config) ->
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
+    mysqlerl:next(?config(db_ref, Config)),
+    {selected, ?COLS, Rows} = mysqlerl:select(?config(db_ref, Config),
+					      {relative, 1}, 1),
+    [{"siobain", _}] = Rows.
 
-first(Config) -> 
-    mysqlerl:select_count(?config(db_ref, Config), "SELECT * FROM user"),
+first(Config) ->
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     {selected, ?COLS, Rows} = mysqlerl:first(?config(db_ref, Config)),
     [{"bjc", _}] = Rows.
 
 last(Config) ->
-    mysqlerl:select_count(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     {selected, ?COLS, Rows} = mysqlerl:last(?config(db_ref, Config)),
     [{"siobain", _}] = Rows.
 
 next(Config) ->
-    mysqlerl:select_count(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     {selected, ?COLS, Rows} = mysqlerl:next(?config(db_ref, Config)),
     [{"bjc", _}] = Rows.
 
 next_after_first(Config) ->
-    mysqlerl:select_count(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:first(?config(db_ref, Config)),
-    {selected, ?COLS, [{"siobain", _}]} = mysqlerl:next(?config(db_ref, Config)).   
+    {selected, ?COLS, [{"siobain", _}]} = mysqlerl:next(?config(db_ref, Config)).
 
 next_after_last(Config) ->
-    mysqlerl:select_count(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:last(?config(db_ref, Config)),
     {selected, ?COLS, []} = mysqlerl:next(?config(db_ref, Config)).
 
 next_all(Config) ->
-    mysqlerl:select_count(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:next(?config(db_ref, Config)),
     {selected, ?COLS, [{"siobain", _}]} = mysqlerl:next(?config(db_ref, Config)),
     {selected, ?COLS, []} = mysqlerl:next(?config(db_ref, Config)).
 
 prev(Config) ->
-    mysqlerl:select_count(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:last(?config(db_ref, Config)),
     {selected, ?COLS, Rows} = mysqlerl:prev(?config(db_ref, Config)),
     [{"bjc", _}] = Rows.
 
 prev_all(Config) ->
-    mysqlerl:select_count(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:last(?config(db_ref, Config)),
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:prev(?config(db_ref, Config)),
     {selected, ?COLS, []} = mysqlerl:prev(?config(db_ref, Config)).
 
 prev_after_first(Config) ->
-    mysqlerl:select_count(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:first(?config(db_ref, Config)),
     {selected, ?COLS, []} = mysqlerl:prev(?config(db_ref, Config)).
 
 prev_after_last(Config) ->
-    mysqlerl:select_count(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:last(?config(db_ref, Config)),
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:prev(?config(db_ref, Config)).
 
 next_prev_next(Config) ->
-    mysqlerl:select_count(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:first(?config(db_ref, Config)),
     {selected, ?COLS, [{"siobain", _}]} = mysqlerl:next(?config(db_ref, Config)),
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:prev(?config(db_ref, Config)),
     {selected, ?COLS, [{"siobain", _}]} = mysqlerl:next(?config(db_ref, Config)).
 
 prev_next_prev(Config) ->
-    mysqlerl:select_count(?config(db_ref, Config), "SELECT * FROM user"),
+    mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:last(?config(db_ref, Config)),
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:prev(?config(db_ref, Config)),
     {selected, ?COLS, [{"siobain", _}]} = mysqlerl:next(?config(db_ref, Config)),
