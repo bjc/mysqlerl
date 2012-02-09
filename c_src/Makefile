@@ -12,9 +12,9 @@ MYSQLLIBS =	$(MYSQLPREFIX)/lib/libmysqlclient.a
 CFLAGS =	-g -Wall -Werror $(MYSQLINCS) $(ERLINCS)
 LDFLAGS =	$(MYSQLLIBS) $(ERLLIBS)
 
-PRIVDIR =	../priv
+BINDIR =	../priv/bin
 
-BINS =	$(PRIVDIR)/mysqlerl
+BINS =	$(BINDIR)/mysqlerl
 OBJS =	io.o log.o msg.o mysqlerl.o
 
 all:	$(BINS)
@@ -22,8 +22,8 @@ all:	$(BINS)
 clean:
 	rm -rf *.o $(BINS)
 
-$(PRIVDIR)/mysqlerl: $(PRIVDIR) $(OBJS)
+$(BINDIR)/mysqlerl: $(BINDIR) $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LDFLAGS)
 
-$(PRIVDIR):
-	mkdir -p $(PRIVDIR)
+$(BINDIR):
+	mkdir -p $(BINDIR)

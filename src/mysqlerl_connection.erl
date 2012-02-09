@@ -60,7 +60,7 @@ helper() ->
         PrivDir when is_list(PrivDir) -> ok;
         {error, bad_name} -> PrivDir = filename:join(["..", "priv"])
     end,
-    filename:join([PrivDir, "mysqlerl"]).
+    filename:nativename(filename:join([PrivDir, "bin", "mysqlerl"])).
 
 port_ref(Sup) ->
     [{mysqlerl_port, Ref, worker, _}] = supervisor:which_children(Sup),
