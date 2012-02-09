@@ -146,7 +146,8 @@ end_per_testcase(_TestCase, Config) ->
 %%--------------------------------------------------------------------
 groups() ->
     [{all, [sequence],
-      [{group, read_queries}, {group, cursor}]},
+      [{group, read_queries}, {group, cursor},
+       {group, trans}, {group, errors}]},
      {read_queries, [shuffle],
       [describe_table, sql_query, param_query, select_count]},
      {cursor, [shuffle],
@@ -155,7 +156,10 @@ groups() ->
        next_all, prev_all, next_prev_next, prev_next_prev,
        select_next, select_relative, select_absolute]},
      {trans, [sequence],
-      [commit, rollback]}].
+      [commit, rollback]},
+     {errors, [shuffle],
+      [select_no_results, first_no_results, last_no_results,
+       next_no_results, prev_no_results]}].
 
 %%--------------------------------------------------------------------
 %% @spec all() -> GroupsAndTestCases | {skip,Reason}
@@ -292,9 +296,25 @@ prev_next_prev(Config) ->
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:prev(?config(db_ref, Config)).
 
 commit(Config) ->
-    ok = mysqlerl:commit(?config(db_ref, Config), commit),
+    {updated, 0} = mysqlerl:commit(?config(db_ref, Config), commit),
     {skip, "Not implemented"}.
 
 rollback(Config) ->
-    ok = mysqlerl:rollback(?config(db_ref, Config), rollback),
+    {updated, 0} = mysqlerl:commit(?config(db_ref, Config), rollback),
     {skip, "Not implemented"}.
+
+select_no_results(Config) ->
+    {error, result_set_does_not_exist} = mysqlerl:select(?config(db_ref, Config),
+                                                         next, 1).
+
+first_no_results(Config) ->
+    {error, result_set_does_not_exist} = mysqlerl:first(?config(db_ref, Config)).
+
+last_no_results(Config) ->
+    {error, result_set_does_not_exist} = mysqlerl:last(?config(db_ref, Config)).
+
+next_no_results(Config) ->
+    {error, result_set_does_not_exist} = mysqlerl:next(?config(db_ref, Config)).
+
+prev_no_results(Config) ->
+    {error, result_set_does_not_exist} = mysqlerl:prev(?config(db_ref, Config)).
