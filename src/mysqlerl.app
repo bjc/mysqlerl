@@ -6,7 +6,7 @@
   {vsn, "0"},
   {modules, [mysqlerl, mysqlerl_app, mysqlerl_sup, mysqlerl_connection,
              mysql_port_sup, mysql_port]},
-  {registered, [mysqlerl, mysqlerl_app, mysqlerl_sup]},
+  {registered, [mysqlerl_app, mysqlerl_sup]},
   {applications, [kernel, stdlib]},
   {env, []},
   {mod, {mysqlerl_app, []}}]}.
