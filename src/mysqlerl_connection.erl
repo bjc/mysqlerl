@@ -37,6 +37,8 @@ init([Owner, Host, Port, Database, User, Password, Options]) ->
     case send_port_cmd(Ref, ConnectArgs, ?CONNECT_TIMEOUT) of
         {data, ok} ->
             {ok, #state{port = Ref, owner = Owner}};
+        {data, {error, Error}} ->
+            {stop, Error};
         {'EXIT', Ref, Reason} ->
             {stop, {port_closed, Reason}}
     end.

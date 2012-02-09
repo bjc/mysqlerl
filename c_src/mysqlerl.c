@@ -248,8 +248,10 @@ handle_connect(ETERM *msg)
   logmsg("INFO: Connecting to %s on %s:%d as %s", db_name, host, port, user);
   if (mysql_real_connect(&dbh, host, user, passwd,
                          db_name, port, NULL, 0) == NULL) {
-    logmsg("ERROR: Failed to connect to database %s as %s: %s.",
-           db_name, user, mysql_error(&dbh));
+    resp = erl_format("{error, {mysql_error, ~i, ~s}}",
+                      mysql_errno(&dbh), mysql_error(&dbh));
+    write_msg(resp);
+    erl_free_term(resp);
     exit(2);
   }
 
