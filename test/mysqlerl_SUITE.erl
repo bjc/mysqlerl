@@ -113,11 +113,11 @@ end_per_group(_GroupName, _Config) ->
 init_per_testcase(_TestCase, Config) ->
     DBInfo = ct:get_config(db_info),
     {ok, DBRef} = mysqlerl:connect(?config(host, DBInfo),
-				   ?config(port, DBInfo),
-				   ?config(name, DBInfo),
-				   ?config(username, DBInfo),
-				   ?config(password, DBInfo),
-				   ?config(options, DBInfo)),
+                                   ?config(port, DBInfo),
+                                   ?config(name, DBInfo),
+                                   ?config(username, DBInfo),
+                                   ?config(password, DBInfo),
+                                   ?config(options, DBInfo)),
     [{db_ref, DBRef} | Config].
 
 %%--------------------------------------------------------------------
@@ -186,42 +186,42 @@ app_stops(_Config) ->
 describe_table(Config) ->
     io:format("describe_table ~p", [Config]),
     {ok, Description} = mysqlerl:describe_table(?config(db_ref, Config),
-						"user"),
+                                                "user"),
     [{"username", {sql_varchar, 20}}, {"password", {sql_varchar, 64}}] = Description.
 
 sql_query(Config) ->
     {selected, ?COLS, Rows} = mysqlerl:sql_query(?config(db_ref, Config),
-						 ?Q),
+                                                 ?Q),
     [{"bjc", _}, {"siobain", _}] = Rows.
 
 param_query(Config) ->
     {selected, ?COLS, Rows} = mysqlerl:param_query(?config(db_ref, Config),
-						   "SELECT * FROM user WHERE username=?",
-						   [{{sql_varchar, 20}, "bjc"}]),
+                                                   "SELECT * FROM user WHERE username=?",
+                                                   [{{sql_varchar, 20}, "bjc"}]),
     [{"bjc", _}] = Rows.
 
 select_count(Config) ->
     {ok, 2} = mysqlerl:select_count(?config(db_ref, Config),
-				    "SELECT username FROM user").
+                                    "SELECT username FROM user").
 
 select_next(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     {selected, ?COLS, Rows} = mysqlerl:select(?config(db_ref, Config),
-					      next, 1),
+                                              next, 1),
     [{"bjc", _}] = Rows.
 
 select_absolute(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:next(?config(db_ref, Config)),
     {selected, ?COLS, Rows} = mysqlerl:select(?config(db_ref, Config),
-					      {absolute, 1}, 1),
+                                              {absolute, 1}, 1),
     [{"bjc", _}] = Rows.
 
 select_relative(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:next(?config(db_ref, Config)),
     {selected, ?COLS, Rows} = mysqlerl:select(?config(db_ref, Config),
-					      {relative, 1}, 1),
+                                              {relative, 1}, 1),
     [{"siobain", _}] = Rows.
 
 first(Config) ->

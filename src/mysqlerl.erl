@@ -52,7 +52,7 @@ commit(Ref, rollback, Timeout) ->
         {num_rows, _} -> ok;
         Other -> Other
     end.
-    
+
 %% Arguments:
 %%     Host = string()
 %%     Port = integer()

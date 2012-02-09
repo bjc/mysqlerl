@@ -185,7 +185,7 @@ make_rows(my_ulonglong count)
       exit(3);
     default:
       logmsg("ERROR: Couldn't fetch a row (%d): %s",
-	     mysql_stmt_errno(sth), mysql_stmt_error(sth));
+             mysql_stmt_errno(sth), mysql_stmt_error(sth));
       exit(3);
     }
   }
@@ -275,17 +275,17 @@ handle_query(ETERM *cmd)
                       mysql_stmt_errno(handle), mysql_stmt_error(handle));
   } else if (mysql_stmt_execute(handle)) {
     resp = erl_format("{error, {mysql_error, ~i, ~s}}",
-		      mysql_stmt_errno(handle), mysql_stmt_error(handle));
+                      mysql_stmt_errno(handle), mysql_stmt_error(handle));
   } else {
     set_mysql_results(handle);
     if (results) {
       resp = handle_mysql_result(results);
     } else {
       if (mysql_num_fields(results) == 0)
-	resp = erl_format("{updated, ~i}", numrows);
+        resp = erl_format("{updated, ~i}", numrows);
       else
-	resp = erl_format("{error, {mysql_error, ~i, ~s}}",
-			  mysql_stmt_errno(handle), mysql_stmt_error(handle));
+        resp = erl_format("{error, {mysql_error, ~i, ~s}}",
+                          mysql_stmt_errno(handle), mysql_stmt_error(handle));
     }
   }
 
@@ -381,13 +381,13 @@ handle_param_query(ETERM *msg)
         value = erl_element(2, p);
 
         if (ERL_IS_TUPLE(type)) {
-	  // Parameter Type + Size: {Type, Size}
+          // Parameter Type + Size: {Type, Size}
           ETERM *t_type, *t_size;
           char *t;
-	  unsigned long size;
+          unsigned long size;
 
           t_size = erl_element(2, type);
-	  size = ERL_INT_VALUE(t_size);
+          size = ERL_INT_VALUE(t_size);
           bind[i].buffer_length = size;
           erl_free_term(t_size);
 
@@ -441,7 +441,7 @@ handle_param_query(ETERM *msg)
               free(val);
             }
           } else if (strncmp(t, VARCHAR_SQL, strlen(VARCHAR_SQL)) == 0) {
-	    (void)bind_string(&bind[i], value, size);
+            (void)bind_string(&bind[i], value, size);
           } else {
             logmsg("ERROR: Unknown sized type: {%s, %d}", t,
                    bind[i].buffer_length);
@@ -478,9 +478,9 @@ handle_param_query(ETERM *msg)
         if (ERL_IS_ATOM(value)
             && strncmp((char *)ERL_ATOM_PTR(value),
                        NULL_SQL, strlen(NULL_SQL)) == 0)
-	  bind[i].is_null = &TRUTHY;
+          bind[i].is_null = &TRUTHY;
         else
-	  bind[i].is_null = &FALSY;
+          bind[i].is_null = &FALSY;
 
         erl_free_term(value);
         erl_free_term(type);
@@ -509,7 +509,7 @@ handle_param_query(ETERM *msg)
       }
 
       for (i = 0; i < param_count; i++) {
-	free(bind[i].length);
+        free(bind[i].length);
         free(bind[i].buffer);
       }
       free(bind);
@@ -549,7 +549,7 @@ handle_select_count(ETERM *msg)
       resp = erl_format("{ok, ~i}", mysql_stmt_affected_rows(handle));
     } else {
       resp = erl_format("{error, {mysql_error, ~i, ~s}}",
-			mysql_stmt_errno(handle), mysql_stmt_error(handle));
+                        mysql_stmt_errno(handle), mysql_stmt_error(handle));
     }
   }
   erl_free(q);
