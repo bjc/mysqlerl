@@ -145,12 +145,16 @@ set_mysql_results(MYSQL_STMT *handle)
     mysql_stmt_close(sth);
   }
   sth = handle;
+  resultoffset = 0;
 
   /* Get result metadata. */
   if (results) {
     mysql_free_result(results);
   }
   results = mysql_stmt_result_metadata(sth);
+  if (results == NULL) {
+    return;
+  }
 
   /* Buffer results. */
   if (r_bind) {
@@ -179,8 +183,6 @@ set_mysql_results(MYSQL_STMT *handle)
   mysql_stmt_bind_result(sth, r_bind);
 
   mysql_stmt_store_result(sth);
-
-  resultoffset = 0;
   numrows = mysql_stmt_num_rows(sth);
 }
 
@@ -364,11 +366,12 @@ handle_query(ETERM *cmd)
     if (results) {
       resp = handle_mysql_result();
     } else {
-      if (mysql_num_fields(results) == 0)
+      if (mysql_stmt_field_count(handle) == 0) {
         resp = erl_format("{updated, ~i}", numrows);
-      else
+      } else {
         resp = erl_format("{error, {mysql_error, ~i, ~s}}",
                           mysql_stmt_errno(handle), mysql_stmt_error(handle));
+      }
     }
   }
 
@@ -585,7 +588,7 @@ handle_param_query(ETERM *msg)
           if (results) {
             resp = handle_mysql_result();
           } else {
-            if (mysql_num_fields(results) == 0)
+            if (mysql_stmt_field_count(handle) == 0)
               resp = erl_format("{updated, ~i}", numrows);
             else
               resp = erl_format("{error, {mysql_error, ~i, ~s}}",
@@ -633,7 +636,7 @@ handle_select_count(ETERM *msg)
     set_mysql_results(handle);
     if (results) {
       resp = erl_format("{ok, ~i}", mysql_stmt_affected_rows(handle));
-    } else if (mysql_num_fields(results) == 0) {
+    } else if (mysql_stmt_field_count(handle) == 0) {
       resp = erl_format("{ok, ~i}", mysql_stmt_affected_rows(handle));
     } else {
       resp = erl_format("{error, {mysql_error, ~i, ~s}}",
