@@ -6,11 +6,15 @@
 
 #include "io.h"
 #include "log.h"
-#include "msg.h"
 
+#include <ei.h>
+#include <erl_interface.h>
 #include <errno.h>
 #include <mysql.h>
+#include <stdlib.h>
 #include <string.h>
+
+typedef u_int32_t msglen_t;
 
 const char *CONNECT_MSG      = "sql_connect";
 const char *QUERY_MSG        = "sql_query";
@@ -47,6 +51,89 @@ my_ulonglong numrows = 0;
 my_ulonglong resultoffset = 0; // The index of the next row to read.
 unsigned int numfields = 0;
 
+void *safe_malloc(size_t size);
+ETERM *read_msg();
+int write_msg(ETERM *msg);
+
+void *
+safe_malloc(size_t size)
+{
+  void *rc;
+
+  rc = malloc(size);
+  if (rc == NULL) {
+    ETERM *resp;
+
+    resp = erl_format("{error, {malloc, ~i}}", size);
+    write_msg(resp);
+    erl_free_term(resp);
+
+    exit(3);
+  }
+
+  return rc;
+}
+
+ETERM *
+read_msg()
+{
+  ETERM *msg;
+  unsigned char *buf;
+  msglen_t len;
+
+  if (restartable_read((unsigned char *)&len, sizeof(len)) == -1) {
+    if (errno == 0) {
+      logmsg("INFO: got end of file from Erlang process, shutting down.");
+      exit(0);
+    }
+
+    logmsg("ERROR: couldn't read %d byte message prefix: %s.",
+           sizeof(len), strerror(errno));
+
+    exit(2);
+  }
+
+  len = ntohl(len);
+  buf = (unsigned char *)safe_malloc(len);
+  if (restartable_read(buf, len) == -1) {
+    logmsg("ERROR: couldn't read %d byte message: %s.",
+           len, strerror(errno));
+
+    free(buf);
+    exit(2);
+  }
+
+  msg = erl_decode(buf);
+  free(buf);
+
+  return msg;
+}
+
+int
+write_msg(ETERM *msg)
+{
+  unsigned char *buf;
+  msglen_t nlen, buflen;
+
+  buflen = erl_term_len(msg);
+  buf = (unsigned char *)safe_malloc(buflen);
+  erl_encode(msg, buf);
+  erl_free_term(msg);
+
+  nlen = htonl(buflen);
+  if (restartable_write((unsigned char *)&nlen, sizeof(nlen)) == -1) {
+    free(buf);
+    return -1;
+  }
+  if (restartable_write(buf, buflen) == -1) {
+    free(buf);
+    return -1;
+  }
+  free(buf);
+
+  return 0;
+}
+
 void
 set_mysql_results(MYSQL_STMT *handle)
 {
@@ -79,15 +166,15 @@ set_mysql_results(MYSQL_STMT *handle)
   numfields = mysql_num_fields(results);
   fields = mysql_fetch_fields(results);
 
-  r_bind = malloc(numfields * sizeof(MYSQL_BIND));
+  r_bind = safe_malloc(numfields * sizeof(MYSQL_BIND));
   memset(r_bind, 0, numfields * sizeof(MYSQL_BIND));
   for (i = 0; i < numfields; i++) {
     r_bind[i].buffer_type   = fields[i].type;
     r_bind[i].buffer_length = fields[i].length;
-    r_bind[i].buffer        = malloc(fields[i].length);
-    r_bind[i].is_null       = malloc(sizeof(*r_bind[i].is_null));
-    r_bind[i].length        = malloc(sizeof(*r_bind[i].length));
-    r_bind[i].error         = malloc(sizeof(*r_bind[i].error));
+    r_bind[i].buffer        = safe_malloc(fields[i].length);
+    r_bind[i].is_null       = safe_malloc(sizeof(*r_bind[i].is_null));
+    r_bind[i].length        = safe_malloc(sizeof(*r_bind[i].length));
+    r_bind[i].error         = safe_malloc(sizeof(*r_bind[i].error));
   }
   mysql_stmt_bind_result(sth, r_bind);
 
@@ -103,13 +190,7 @@ make_cols()
   ETERM **cols, *rc;
   unsigned int i;
 
-  cols = (ETERM **)malloc(numfields * sizeof(ETERM *));
-  if (cols == NULL) {
-    logmsg("ERROR: Couldn't allocate %d bytes for columns: %s",
-           strerror(errno));
-    exit(3);
-  }
-
+  cols = (ETERM **)safe_malloc(numfields * sizeof(ETERM *));
   for (i = 0; i < numfields; i++)
     cols[i] = erl_mk_string(fields[i].name);
 
@@ -128,13 +209,7 @@ make_row()
   ETERM **rowtup, *rc;
   unsigned int i;
 
-  rowtup = (ETERM **)malloc(numfields * sizeof(ETERM *));
-  if (rowtup == NULL) {
-    logmsg("ERROR: Couldn't allocate %d bytes for row: %s",
-           strerror(errno));
-    exit(3);
-  }
-
+  rowtup = (ETERM **)safe_malloc(numfields * sizeof(ETERM *));
   for (i = 0; i < numfields; i++) {
     if (*r_bind[i].is_null)
       rowtup[i] = erl_mk_atom("null");
@@ -161,13 +236,7 @@ make_rows(my_ulonglong count)
   ETERM **rows, *rc;
   unsigned int i;
 
-  rows = (ETERM **)malloc(numrows * sizeof(ETERM *));
-  if (rows == NULL) {
-    logmsg("ERROR: Couldn't allocate %d bytes for rows: %s",
-           strerror(errno));
-    exit(3);
-  }
-
+  rows = (ETERM **)safe_malloc(numrows * sizeof(ETERM *));
   for (i = 0; i < count; i++) {
     ETERM *rt;
 
@@ -204,7 +273,7 @@ handle_mysql_result()
 {
   ETERM *ecols, *erows, *resp;
 
-  ecols = make_cols(fields);
+  ecols = make_cols();
   erows = make_rows(numrows);
   resultoffset = numrows;
 
@@ -281,7 +350,7 @@ handle_query(ETERM *cmd)
   } else {
     set_mysql_results(handle);
     if (results) {
-      resp = handle_mysql_result(results);
+      resp = handle_mysql_result();
     } else {
       if (mysql_num_fields(results) == 0)
         resp = erl_format("{updated, ~i}", numrows);
@@ -315,10 +384,10 @@ bind_string(MYSQL_BIND *bind, const ETERM *erl_value, unsigned long len)
   bind->buffer_type = MYSQL_TYPE_BLOB;
   bind->buffer_length = len;
 
-  bind->length = malloc(sizeof(unsigned long));
+  bind->length = safe_malloc(sizeof(unsigned long));
   memcpy(bind->length, &slen, sizeof(unsigned long));
 
-  bind->buffer = malloc((slen + 1) * sizeof(char));
+  bind->buffer = safe_malloc((slen + 1) * sizeof(char));
   memcpy(bind->buffer, val, slen);
 
   free(val);
@@ -366,7 +435,7 @@ handle_param_query(ETERM *msg)
     if (param_count != erl_length(params)) {
       resp = erl_format("{error, {mysql_error, -1, [expected_params, %d, got_params, %d]}}", param_count, erl_length(params));
     } else {
-      bind = malloc(param_count * sizeof(MYSQL_BIND));
+      bind = safe_malloc(param_count * sizeof(MYSQL_BIND));
       if (bind == NULL) {
         logmsg("ERROR: Couldn't allocate %d bytes for bind params.",
                param_count * sizeof(MYSQL_BIND));
@@ -395,13 +464,13 @@ handle_param_query(ETERM *msg)
 
           t_type = erl_element(1, type);
           t = (char *)ERL_ATOM_PTR(t_type);
-          bind[i].length = malloc(sizeof(unsigned long));
+          bind[i].length = safe_malloc(sizeof(unsigned long));
           if (strncmp(t, NUMERIC_SQL, strlen(NUMERIC_SQL)) == 0) {
             int val;
 
             bind[i].buffer_type = MYSQL_TYPE_LONG;
             *bind[i].length = sizeof(int);
-            bind[i].buffer = malloc(*bind[i].length);
+            bind[i].buffer = safe_malloc(*bind[i].length);
             memset(bind[i].buffer, 0, *bind[i].length);
 
             val = ERL_INT_VALUE(value);
@@ -411,7 +480,7 @@ handle_param_query(ETERM *msg)
 
             bind[i].buffer_type = MYSQL_TYPE_STRING;
             *bind[i].length = bind[i].buffer_length * sizeof(char);
-            bind[i].buffer = malloc(*bind[i].length);
+            bind[i].buffer = safe_malloc(*bind[i].length);
             memset(bind[i].buffer, 0, *bind[i].length);
 
             val = erl_iolist_to_string(value);
@@ -424,7 +493,7 @@ handle_param_query(ETERM *msg)
 
             bind[i].buffer_type = MYSQL_TYPE_FLOAT;
             *bind[i].length = sizeof(float);
-            bind[i].buffer = malloc(*bind[i].length);
+            bind[i].buffer = safe_malloc(*bind[i].length);
             memset(bind[i].buffer, 0, *bind[i].length);
 
             val = ERL_FLOAT_VALUE(value);
@@ -434,7 +503,7 @@ handle_param_query(ETERM *msg)
 
             bind[i].buffer_type = MYSQL_TYPE_STRING;
             *bind[i].length = bind[i].buffer_length * sizeof(char);
-            bind[i].buffer = malloc(*bind[i].length);
+            bind[i].buffer = safe_malloc(*bind[i].length);
             memset(bind[i].buffer, 0, *bind[i].length);
 
             val = erl_iolist_to_string(value);
@@ -457,7 +526,7 @@ handle_param_query(ETERM *msg)
           if (strncmp(t, TIMESTAMP_SQL, strlen(TIMESTAMP_SQL)) == 0) {
             bind[i].buffer_type = MYSQL_TYPE_TIMESTAMP;
             *bind[i].length = sizeof(MYSQL_TIME);
-            bind[i].buffer = malloc(*bind[i].length);
+            bind[i].buffer = safe_malloc(*bind[i].length);
             memset(bind[i].buffer, 0, *bind[i].length);
 
             memcpy(bind[i].buffer, value, *bind[i].length);
@@ -466,7 +535,7 @@ handle_param_query(ETERM *msg)
 
             bind[i].buffer_type = MYSQL_TYPE_LONG;
             *bind[i].length = sizeof(int);
-            bind[i].buffer = malloc(*bind[i].length);
+            bind[i].buffer = safe_malloc(*bind[i].length);
             memset(bind[i].buffer, 0, *bind[i].length);
 
             val = ERL_INT_VALUE(value);
@@ -573,7 +642,7 @@ handle_first(ETERM *msg)
   mysql_stmt_data_seek(sth, resultoffset);
   resultoffset = 1;
 
-  ecols = make_cols(fields);
+  ecols = make_cols();
   erows = make_rows(1);
   resp = erl_format("{selected, ~w, ~w}", ecols, erows);
   erl_free_term(erows);
@@ -596,7 +665,7 @@ handle_last(ETERM *msg)
   mysql_stmt_data_seek(sth, numrows - 1);
   resultoffset = numrows;
 
-  ecols = make_cols(fields);
+  ecols = make_cols();
   erows = make_rows(1);
   resp = erl_format("{selected, ~w, ~w}", ecols, erows);
   erl_free_term(erows);
@@ -616,7 +685,7 @@ handle_next(ETERM *msg)
     exit(2);
   }
 
-  ecols = make_cols(fields);
+  ecols = make_cols();
   if (resultoffset == numrows) {
     resp = erl_format("{selected, ~w, []}", ecols);
   } else {
@@ -642,7 +711,7 @@ handle_prev(ETERM *msg)
     exit(2);
   }
 
-  ecols = make_cols(fields);
+  ecols = make_cols();
   if (resultoffset <= 1) {
     resp = erl_format("{selected, ~w, []}", ecols);
   } else {

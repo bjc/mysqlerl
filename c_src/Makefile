@@ -15,7 +15,7 @@ LDFLAGS =	$(MYSQLLIBS) $(ERLLIBS)
 BINDIR =	../priv/bin
 
 BINS =	$(BINDIR)/mysqlerl
-OBJS =	io.o log.o msg.o mysqlerl.o
+OBJS =	io.o log.o mysqlerl.o
 
 all:	$(BINS)
 
