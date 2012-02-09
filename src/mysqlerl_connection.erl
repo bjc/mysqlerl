@@ -2,7 +2,6 @@
 -author('bjc@kublai.com').
 
 -include("mysqlerl.hrl").
--include("mysqlerl_port.hrl").
 
 -behavior(gen_server).
 
@@ -11,7 +10,9 @@
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
 
--record(state, {sup, owner}).
+-record(state, {port, owner}).
+
+-define(CONNECT_TIMEOUT, 30000).
 
 start_link(Owner, Host, Port, Database, User, Password, Options) ->
     gen_server:start_link(?MODULE, [Owner, Host, Port, Database,
@@ -25,11 +26,20 @@ stop(Pid) ->
 
 init([Owner, Host, Port, Database, User, Password, Options]) ->
     process_flag(trap_exit, true),
-    link(Owner),
-    {ok, Sup} = supervisor:start_link(mysqlerl_port_sup,
-                                      [helper(), Host, Port, Database,
-                                       User, Password, Options]),
-    {ok, #state{sup = Sup, owner = Owner}}.
+    erlang:monitor(process, Owner),
+    Ref = open_port({spawn, helper()}, [{packet, 4}, binary]),
+    ConnectArgs = #sql_connect{host     = Host,
+                               port     = Port,
+                               database = Database,
+                               user     = User,
+                               password = Password,
+                               options  = Options},
+    case send_port_cmd(Ref, ConnectArgs, ?CONNECT_TIMEOUT) of
+        {data, ok} ->
+            {ok, #state{port = Ref, owner = Owner}};
+        {'EXIT', Ref, Reason} ->
+            {stop, {port_closed, Reason}}
+    end.
 
 terminate(Reason, _State) ->
     io:format("DEBUG: connection got terminate: ~p~n", [Reason]),
@@ -45,15 +55,28 @@ handle_call(Request, From, #state{owner = Owner} = State)
     {reply, {error, process_not_owner_of_odbc_connection}, State};
 handle_call(stop, _From, State) ->
     {stop, normal, State};
-handle_call(Request, _From, State) ->
-    {reply, gen_server:call(port_ref(State#state.sup),
-                            #req{request = Request}, infinity), State}.
+handle_call({Req, Timeout}, From, State) ->
+    case send_port_cmd(State#state.port, Req, Timeout) of
+        {data, Res} ->
+            {reply, Res, State};
+        {'EXIT', _Ref, Reason} ->
+            {stop, {port_closed, Reason}, State};
+        timeout ->
+            gen_server:reply(From, timeout),
+            {stop, timeout, State};
+        Other ->
+            error_logger:warning_msg("Got unknown query response: ~p~n",
+                                     [Other]),
+            gen_server:reply(From, {error, connection_closed}),
+            {stop, {unknownreply, Other}, State}
+    end.
 
 handle_cast(_Request, State) ->
     {noreply, State}.
 
-handle_info({'EXIT', Pid, _Reason}, #state{owner = Pid} = State) ->
-    io:format("DEBUG: owner ~p shut down.~n", [Pid]),
+handle_info({'DOWN', _Monitor, process, _Reason, _PID, Reason},
+            #state{owner = PID} = State) ->
+    io:format("DEBUG: owner ~p shut down: ~p.~n", [PID, Reason]),
     {stop, normal, State}.
 
 helper() ->
@@ -63,6 +86,13 @@ helper() ->
     end,
     filename:nativename(filename:join([PrivDir, "bin", "mysqlerl"])).
 
-port_ref(Sup) ->
-    [{mysqlerl_port, Ref, worker, _}] = supervisor:which_children(Sup),
-    Ref.
+send_port_cmd(Ref, Request, Timeout) ->
+    io:format("DEBUG: Sending request: ~p~n", [Request]),
+    port_command(Ref, term_to_binary(Request)),
+    receive
+        {Ref, {data, Res}} ->
+            {data, binary_to_term(Res)};
+        Other -> Other
+    after Timeout ->
+            timeout
+    end.

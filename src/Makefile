@@ -3,13 +3,14 @@ EFLAGS =	-W +debug_info
 BEAMDIR =	../ebin
 
 BINS =		$(BEAMDIR)/mysqlerl.app
-BEAMS =		mysqlerl.beam mysqlerl_app.beam mysqlerl_connection.beam \
-		mysqlerl_port.beam mysqlerl_port_sup.beam mysqlerl_sup.beam
+BEAMS =		mysqlerl.beam mysqlerl_app.beam mysqlerl_sup.beam	\
+		mysqlerl_connection.beam
 
 all:	$(BEAMDIR) $(BINS)
 
 clean:
 	rm -rf *.beam
+	rm -rf $(BEAMDIR)/*.beam
 	rm -rf $(BINS) $(BEAMS) $(BEAMDIR)/mysqlerl.app
 
 %.beam: %.erl
