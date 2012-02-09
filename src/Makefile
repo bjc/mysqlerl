@@ -19,8 +19,7 @@ BEAMDIR =	../ebin
 BINS =		$(PRIVDIR)/mysqlerl $(BEAMDIR)/mysqlerl.app
 MYSQLERLOBJS =	io.o log.o msg.o mysqlerl.o
 BEAMS =		mysqlerl.beam mysqlerl_app.beam mysqlerl_connection.beam \
-		mysqlerl_connection_sup.beam mysqlerl_port.beam          \
-		mysqlerl_port_sup.beam mysqlerl_sup.beam
+		mysqlerl_port.beam mysqlerl_port_sup.beam mysqlerl_sup.beam
 
 all:	$(PRIVDIR) $(BEAMDIR) $(BINS)
 
