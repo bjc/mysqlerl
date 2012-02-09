@@ -6,8 +6,8 @@
 %% Behavior callbacks.
 -export([start/2, stop/1]).
 
-start(normal, []) ->
-    mysqlerl_sup:start_link().
+start(normal, Name) ->
+    supervisor:start_link({local, mysqlerl_sup}, mysqlerl_sup, [Name]).
 
 stop([]) ->
     ok.

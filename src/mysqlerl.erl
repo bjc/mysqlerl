@@ -65,7 +65,8 @@ commit(Ref, rollback, Timeout) ->
 %%     {ok, Ref} | {error, Reason}
 %%     Ref = connection_reference()
 connect(Host, Port, Database, User, Password, Options) ->
-    mysqlerl_sup:connect(Host, Port, Database, User, Password, Options).
+    supervisor:start_child(mysqlerl_sup, [self(), Host, Port, Database,
+                                          User, Password, Options]).
 
 %% Arguments:
 %%     Ref = connection_reference()
