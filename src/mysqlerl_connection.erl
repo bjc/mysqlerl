@@ -26,8 +26,9 @@ stop(Pid) ->
 init([Owner, Host, Port, Database, User, Password, Options]) ->
     process_flag(trap_exit, true),
     link(Owner),
-    {ok, Sup} = mysqlerl_port_sup:start_link(helper(), Host, Port, Database,
-                                             User, Password, Options),
+    {ok, Sup} = supervisor:start_link(mysqlerl_port_sup,
+                                      [helper(), Host, Port, Database,
+                                       User, Password, Options]),
     {ok, #state{sup = Sup, owner = Owner}}.
 
 terminate(Reason, _State) ->
