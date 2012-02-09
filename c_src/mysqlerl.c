@@ -350,6 +350,8 @@ handle_query(ETERM *cmd)
   q = erl_iolist_to_string(query);
   erl_free_term(query);
 
+  logmsg("INFO: got query: %s", q);
+
   handle = mysql_stmt_init(&dbh);
   if (mysql_stmt_prepare(handle, q, strlen(q))) {
     resp = erl_format("{error, {mysql_error, ~i, ~s}}",
@@ -432,6 +434,8 @@ handle_param_query(ETERM *msg)
   query = erl_element(2, msg);
   q = erl_iolist_to_string(query);
   erl_free_term(query);
+
+  logmsg("INFO: got param query: %s", q);
 
   params = erl_element(3, msg);
   erl_free_term(params);
@@ -615,6 +619,8 @@ handle_select_count(ETERM *msg)
   query = erl_element(2, msg);
   q = erl_iolist_to_string(query);
   erl_free_term(query);
+
+  logmsg("INFO: Got select count for: %s", q);
 
   handle = mysql_stmt_init(&dbh);
   if (mysql_stmt_prepare(handle, q, strlen(q))) {
