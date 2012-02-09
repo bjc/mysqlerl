@@ -219,7 +219,11 @@ make_row()
 
   rc = erl_mk_tuple(rowtup, numfields);
   if (rc == NULL) {
-    logmsg("ERROR: couldn't allocate %d-tuple", numfields);
+    ETERM *resp;
+
+    resp = erl_format("{error, {erl_mk_tuple, ~i}}", numfields);
+    write_msg(resp);
+    erl_free_term(resp);
     exit(3);
   }
 
@@ -247,14 +251,20 @@ make_rows(my_ulonglong count)
       erl_free_term(rt);
       break;
     case MYSQL_NO_DATA:
-      logmsg("ERROR: No data waiting");
+      rt = erl_format("{error, {mysql_error, no_data}}");
+      write_msg(rt);
+      erl_free_term(rt);
       exit(3);
     case MYSQL_DATA_TRUNCATED:
-      logmsg("ERROR: Data truncated");
+      rt = erl_format("{error, {mysql_error, data_truncated}}");
+      write_msg(rt);
+      erl_free_term(rt);
       exit(3);
     default:
-      logmsg("ERROR: Couldn't fetch a row (%d): %s",
-             mysql_stmt_errno(sth), mysql_stmt_error(sth));
+      rt = erl_format("{error, {mysql_error, ~i, ~s}}",
+                      mysql_stmt_errno(sth), mysql_stmt_error(sth));
+      write_msg(rt);
+      erl_free_term(rt);
       exit(3);
     }
   }
@@ -436,11 +446,6 @@ handle_param_query(ETERM *msg)
       resp = erl_format("{error, {mysql_error, -1, [expected_params, %d, got_params, %d]}}", param_count, erl_length(params));
     } else {
       bind = safe_malloc(param_count * sizeof(MYSQL_BIND));
-      if (bind == NULL) {
-        logmsg("ERROR: Couldn't allocate %d bytes for bind params.",
-               param_count * sizeof(MYSQL_BIND));
-        exit(3);
-      }
       memset(bind, 0, param_count * sizeof(MYSQL_BIND));
 
       for (i = 0, tmp = params;
@@ -514,9 +519,12 @@ handle_param_query(ETERM *msg)
           } else if (strncmp(t, VARCHAR_SQL, strlen(VARCHAR_SQL)) == 0) {
             (void)bind_string(&bind[i], value, size);
           } else {
-            logmsg("ERROR: Unknown sized type: {%s, %d}", t,
-                   bind[i].buffer_length);
-            exit(3);
+            ETERM *resp;
+
+            resp = erl_format("{error, {unknown_sized_type, ~s, ~i}}",
+                              t, bind[i].buffer_length);
+            write_msg(resp);
+            erl_free_term(resp);
           }
           erl_free_term(t_type);
         } else {
@@ -541,8 +549,11 @@ handle_param_query(ETERM *msg)
             val = ERL_INT_VALUE(value);
             memcpy(bind[i].buffer, &val, *bind[i].length);
           } else {
-            logmsg("ERROR: Unknown type: %s", t);
-            exit(3);
+            ETERM *resp;
+
+            resp = erl_format("{error, {unknown_type, ~s}}", t);
+            write_msg(resp);
+            erl_free_term(resp);
           }
         }
 
@@ -635,8 +646,11 @@ handle_first(ETERM *msg)
   ETERM *ecols, *erows, *resp;
 
   if (results == NULL) {
-    logmsg("ERROR: got first message w/o cursor.");
-    exit(2);
+    resp = erl_format("{error, result_set_does_not_exist}");
+    write_msg(resp);
+    erl_free_term(resp);
+
+    return;
   }
 
   mysql_stmt_data_seek(sth, resultoffset);
@@ -658,8 +672,11 @@ handle_last(ETERM *msg)
   ETERM *ecols, *erows, *resp;
 
   if (results == NULL) {
-    logmsg("ERROR: got last message w/o cursor.");
-    exit(2);
+    resp = erl_format("{error, result_set_does_not_exist}");
+    write_msg(resp);
+    erl_free_term(resp);
+
+    return;
   }
 
   mysql_stmt_data_seek(sth, numrows - 1);
@@ -681,8 +698,11 @@ handle_next(ETERM *msg)
   ETERM *ecols, *erows, *resp;
 
   if (results == NULL) {
-    logmsg("ERROR: got next message w/o cursor.");
-    exit(2);
+    resp = erl_format("{error, result_set_does_not_exist}");
+    write_msg(resp);
+    erl_free_term(resp);
+
+    return;
   }
 
   ecols = make_cols();
@@ -707,8 +727,11 @@ handle_prev(ETERM *msg)
   ETERM *ecols, *erows, *resp;
 
   if (results == NULL) {
-    logmsg("ERROR: got prev message w/o cursor.");
-    exit(2);
+    resp = erl_format("{error, result_set_does_not_exist}");
+    write_msg(resp);
+    erl_free_term(resp);
+
+    return;
   }
 
   ecols = make_cols();
@@ -741,8 +764,11 @@ handle_select(ETERM *msg)
   erl_free_term(ecount);
 
   if (results == NULL) {
-    logmsg("ERROR: select message w/o cursor.");
-    exit(2);
+    resp = erl_format("{error, result_set_does_not_exist}");
+    write_msg(resp);
+    erl_free_term(resp);
+
+    return;
   }
 
   if (ERL_IS_TUPLE(epos)) {
@@ -815,9 +841,11 @@ dispatch_db_cmd(ETERM *msg)
   else if (strncmp(tag_name, PREV_MSG, strlen(PREV_MSG)) == 0)
     handle_prev(msg);
   else {
-    logmsg("WARNING: message type %s unknown.", (char *)ERL_ATOM_PTR(tag));
-    erl_free_term(tag);
-    exit(3);
+    ETERM *resp;
+
+    resp = erl_format("{error, {uknown_message, ~s}}", tag);
+    write_msg(resp);
+    erl_free_term(resp);
   }
 
   erl_free_term(tag);
