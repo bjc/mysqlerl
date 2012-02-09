@@ -181,12 +181,6 @@ all() ->
 %% Comment = term()
 %% @end
 %%--------------------------------------------------------------------
-app_starts(_Config) ->
-    ok = application:start(mysqlerl).
-
-app_stops(_Config) ->
-    ok = application:start(mysqlerl).
-
 describe_table(Config) ->
     io:format("describe_table ~p", [Config]),
     {ok, Description} = mysqlerl:describe_table(?config(db_ref, Config),
