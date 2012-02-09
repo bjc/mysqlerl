@@ -1,6 +1,0 @@
-* Support ODBC options where applicable.
-* Test functions die (or don't) correctly when not connected to DB.
-* Connection pooling with multiple databases.
-I'm guessing that it doesn't work right now. Looks like
-mysqlerl_connection_sup:connect starts a simple-one-for-one port, and
-commands use :random_child to do dispatch. That's bad.
