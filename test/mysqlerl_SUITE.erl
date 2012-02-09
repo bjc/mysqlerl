@@ -182,7 +182,6 @@ all() ->
 %% @end
 %%--------------------------------------------------------------------
 describe_table(Config) ->
-    io:format("describe_table ~p", [Config]),
     {ok, Description} = mysqlerl:describe_table(?config(db_ref, Config),
                                                 "user"),
     [{"username", {sql_varchar, 20}}, {"password", {sql_varchar, 64}}] = Description.
