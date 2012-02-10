@@ -109,8 +109,8 @@ groups() ->
 %% @end
 %%--------------------------------------------------------------------
 all() ->
-    [valid_connect, valid_disconnect, no_port_driver,
-     port_dies, owner_dies, controller_dies].
+    [valid_connect, valid_disconnect, invalid_connect, invalid_disconnect,
+     no_port_driver, port_dies, owner_dies, controller_dies].
 
 %%--------------------------------------------------------------------
 %% @spec TestCase(Config0) ->
@@ -137,6 +137,24 @@ valid_disconnect(doc) ->
     ["Test that disconnection works with open connection."];
 valid_disconnect(Config) ->
     ok = mysqlerl:disconnect(?config(db_ref, Config)).
+
+invalid_connect(doc) ->
+    ["Test that error returns when connecting to a non-existant database."];
+invalid_connect(Config) ->
+    DBInfo = ct:get_config(db_info),
+    {error, _} = mysqlerl:connect(?config(host, DBInfo),
+                                  ?config(port, DBInfo),
+                                  ?config(name, DBInfo) ++ "nonesuchdb",
+                                  ?config(username, DBInfo),
+                                  ?config(password, DBInfo),
+                                  ?config(options, DBInfo)).
+
+invalid_disconnect(doc) ->
+    ["Test that disconnecting a disconnected returns success."];
+invalid_disconnect(Config) ->
+    {db_ref, DBRef} = hd(valid_connect(Config)),
+    ok = valid_disconnect(Config),
+    ok = mysqlerl:disconnect(DBRef).
 
 no_port_driver(doc) ->
     ["Test that connection fails properly when the port driver is missing."];
