@@ -117,8 +117,6 @@ groups() ->
        next_after_first, next_after_last, prev_after_first, prev_after_last,
        next_all, prev_all, next_prev_next, prev_next_prev,
        select_next, select_relative, select_absolute]},
-     {trans, [sequence],
-      [commit, rollback]},
      {errors, [shuffle],
       [select_no_results, first_no_results, last_no_results,
        next_no_results, prev_no_results]}].
@@ -132,7 +130,7 @@ groups() ->
 %% @end
 %%--------------------------------------------------------------------
 all() ->
-    [{group, read_queries}, {group, cursor}, {group, trans}, {group, errors}].
+    [{group, read_queries}, {group, cursor}, {group, errors}].
 
 %%--------------------------------------------------------------------
 %% @spec TestCase(Config0) ->
@@ -287,18 +285,6 @@ prev_next_prev(Config) ->
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:prev(?config(db_ref, Config)),
     {selected, ?COLS, [{"siobain", _}]} = mysqlerl:next(?config(db_ref, Config)),
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:prev(?config(db_ref, Config)).
-
-commit(doc) ->
-    ["Tests that commit/1 with commit commits pending transactions."];
-commit(Config) ->
-    {updated, 0} = mysqlerl:commit(?config(db_ref, Config), commit),
-    {skip, "Not implemented"}.
-
-rollback(doc) ->
-    ["Tests that rollback/1 with rollback undoes pending transactions."];
-rollback(Config) ->
-    {updated, 0} = mysqlerl:commit(?config(db_ref, Config), rollback),
-    {skip, "Not implemented"}.
 
 describe_no_table(doc) ->
     ["Test that describe_table/2 fails properly when no table exists."];
