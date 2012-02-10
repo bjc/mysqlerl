@@ -106,7 +106,7 @@ groups() ->
 %% @end
 %%--------------------------------------------------------------------
 all() ->
-    [app_starts, app_stops].
+    [app_starts, app_stops, mysqlerl_starts, mysqlerl_stops].
 
 %%--------------------------------------------------------------------
 %% @spec TestCase(Config0) ->
@@ -120,9 +120,25 @@ all() ->
 app_starts(doc) ->
     ["Tests application:start/1."];
 app_starts(_Config) ->
-    ok = application:start(mysqlerl).
+    ok = application:start(mysqlerl),
+    {mysqlerl, _, _} = lists:keyfind(mysqlerl, 1,
+                                     application:which_applications()).
 
 app_stops(doc) ->
     ["Tests application:stop/1."];
 app_stops(_Config) ->
-    ok = application:stop(mysqlerl).
+    ok = application:stop(mysqlerl),
+    false = lists:keyfind(mysqlerl, 1, application:which_applications()).
+
+mysqlerl_starts(doc) ->
+    ["Tests mysqlerl:start/0."];
+mysqlerl_starts(_Config) ->
+    ok = mysqlerl:start(),
+    {mysqlerl, _, _} = lists:keyfind(mysqlerl, 1,
+                                     application:which_applications()).
+
+mysqlerl_stops(doc) ->
+    ["Tests mysqlerl:stop/0."];
+mysqlerl_stops(_Config) ->
+    ok = mysqlerl:stop(),
+    false = lists:keyfind(mysqlerl, 1, application:which_applications()).
