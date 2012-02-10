@@ -338,6 +338,12 @@ rollback(Config) ->
     {updated, 0} = mysqlerl:commit(?config(db_ref, Config), rollback),
     {skip, "Not implemented"}.
 
+describe_no_table(doc) ->
+    ["Test that describe_table/2 fails properly when no table exists."];
+describe_no_table(Config) ->
+    {error, _} = mysqlerl:describe_table(?config(db_ref, Config), "none").
+
+
 select_no_results(doc) ->
     ["Tests that select/3 fails properly when no results exist."];
 select_no_results(Config) ->
