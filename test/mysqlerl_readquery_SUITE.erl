@@ -6,7 +6,7 @@
 %%% @end
 %%% Created :  6 Feb 2012 by Brian Cully <bjc@kublai.com>
 %%%-------------------------------------------------------------------
--module(mysqlerl_SUITE).
+-module(mysqlerl_readquery_SUITE).
 
 -compile(export_all).
 
@@ -110,10 +110,7 @@ end_per_testcase(_TestCase, Config) ->
 %% @end
 %%--------------------------------------------------------------------
 groups() ->
-    [{all, [sequence],
-      [{group, read_queries}, {group, cursor},
-       {group, trans}, {group, errors}]},
-     {read_queries, [shuffle],
+    [{read_queries, [shuffle],
       [describe_table, sql_query, param_query, select_count]},
      {cursor, [shuffle],
       [first, last, next, prev,
@@ -135,7 +132,7 @@ groups() ->
 %% @end
 %%--------------------------------------------------------------------
 all() ->
-    [{group, all}].
+    [{group, read_queries}, {group, cursor}, {group, trans}, {group, errors}].
 
 %%--------------------------------------------------------------------
 %% @spec TestCase(Config0) ->
