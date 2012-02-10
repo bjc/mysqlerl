@@ -32,7 +32,8 @@ create_db(User, Pass, Name) ->
     drop_db(User, Pass, Name),
     SQL = io_lib:format("CREATE DATABASE ~s", [Name]),
     CMD = mysql_cmd(User, Pass),
-    os:cmd(io_lib:format("echo '~s' | ~s", [SQL, CMD])).
+    os:cmd(io_lib:format("echo '~s' | ~s", [SQL, CMD])),
+    ok.
 
 drop_db(_Config) ->
     DBInfo = ct:get_config(db_info),
@@ -44,7 +45,8 @@ drop_db(_Config) ->
 drop_db(User, Pass, Name) ->
     SQL = io_lib:format("DROP DATABASE IF EXISTS ~s", [Name]),
     CMD = mysql_cmd(User, Pass),
-    os:cmd(io_lib:format("echo '~s' | ~s", [SQL, CMD])).
+    os:cmd(io_lib:format("echo '~s' | ~s", [SQL, CMD])),
+    ok.
 
 create_table(Config) ->
     DBInfo  = ct:get_config(db_info),
@@ -56,4 +58,5 @@ create_table(Config) ->
 
 create_table(User, Pass, Name, DataDir) ->
     CMD = mysql_cmd(User, Pass),
-    os:cmd(io_lib:format("~s ~s < ~s/table-data.sql", [CMD, Name, DataDir])).
+    os:cmd(io_lib:format("~s ~s < ~s/table-data.sql", [CMD, Name, DataDir])),
+    ok.

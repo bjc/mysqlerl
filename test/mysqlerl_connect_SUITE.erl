@@ -28,7 +28,7 @@ suite() ->
 %% @end
 %%--------------------------------------------------------------------
 init_per_suite(Config) ->
-    mysqlerl_test_lib:create_db(Config),
+    ok = mysqlerl_test_lib:create_db(Config),
     ok = application:start(mysqlerl),
     Config.
 
@@ -39,7 +39,7 @@ init_per_suite(Config) ->
 %%--------------------------------------------------------------------
 end_per_suite(Config) ->
     ok = application:stop(mysqlerl),
-    mysqlerl_test_lib:drop_db(Config).
+    ok = mysqlerl_test_lib:drop_db(Config).
 
 %%--------------------------------------------------------------------
 %% @spec init_per_group(GroupName, Config0) ->
