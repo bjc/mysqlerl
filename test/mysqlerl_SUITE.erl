@@ -24,30 +24,6 @@ suite() ->
     [{timetrap,{seconds,30}},
      {require, db_info}].
 
-mysql_cmd(undefined, undefined) ->
-    "mysql";
-mysql_cmd(User, undefined) ->
-    io_lib:format("mysql -u'~s'", [User]);
-mysql_cmd(undefined, Pass) ->
-    io_lib:format("mysql -p'~s'", [Pass]);
-mysql_cmd(User, Pass) ->
-    io_lib:format("mysql -u'~s' -p'~s'", [User, Pass]).
-
-create_db(User, Pass, Name) ->
-    drop_db(User, Pass, Name),
-    SQL = io_lib:format("CREATE DATABASE ~s", [Name]),
-    CMD = mysql_cmd(User, Pass),
-    os:cmd(io_lib:format("echo '~s' | ~s", [SQL, CMD])).
-
-drop_db(User, Pass, Name) ->
-    SQL = io_lib:format("DROP DATABASE IF EXISTS ~s", [Name]),
-    CMD = mysql_cmd(User, Pass),
-    os:cmd(io_lib:format("echo '~s' | ~s", [SQL, CMD])).
-
-create_table(User, Pass, Name, DataDir) ->
-    CMD = mysql_cmd(User, Pass),
-    os:cmd(io_lib:format("~s ~s < ~s/table-data.sql", [CMD, Name, DataDir])).
-
 %%--------------------------------------------------------------------
 %% @spec init_per_suite(Config0) ->
 %%     Config1 | {skip,Reason} | {skip_and_save,Reason,Config1}
@@ -62,8 +38,8 @@ init_per_suite(Config) ->
     Pass    = ?config(password, DBInfo),
     Name    = ?config(name, DBInfo),
 
-    create_db(User, Pass, Name),
-    create_table(User, Pass, Name, DataDir),
+    mysqlerl_test_lib:create_db(User, Pass, Name),
+    mysqlerl_test_lib:create_table(User, Pass, Name, DataDir),
     ok = application:start(mysqlerl),
     Config.
 
@@ -79,7 +55,7 @@ end_per_suite(_Config) ->
     Name   = ?config(name, DBInfo),
 
     ok = application:stop(mysqlerl),
-    drop_db(User, Pass, Name).
+    mysqlerl_test_lib:drop_db(User, Pass, Name).
 
 %%--------------------------------------------------------------------
 %% @spec init_per_group(GroupName, Config0) ->
