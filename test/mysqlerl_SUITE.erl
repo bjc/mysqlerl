@@ -181,32 +181,44 @@ all() ->
 %% Comment = term()
 %% @end
 %%--------------------------------------------------------------------
+describe_table(doc) ->
+    ["Tests describe_table/2 for varchar columns."];
 describe_table(Config) ->
     {ok, Description} = mysqlerl:describe_table(?config(db_ref, Config),
                                                 "user"),
     [{"username", {sql_varchar, 20}}, {"password", {sql_varchar, 64}}] = Description.
 
+sql_query(doc) ->
+    ["Tests sql_query/2 for sample data."];
 sql_query(Config) ->
     {selected, ?COLS, Rows} = mysqlerl:sql_query(?config(db_ref, Config),
                                                  ?Q),
     [{"bjc", _}, {"siobain", _}] = Rows.
 
+param_query(doc) ->
+    ["Tests param_query/3 for sample data."];
 param_query(Config) ->
     {selected, ?COLS, Rows} = mysqlerl:param_query(?config(db_ref, Config),
                                                    "SELECT * FROM user WHERE username=?",
                                                    [{{sql_varchar, 20}, "bjc"}]),
     [{"bjc", _}] = Rows.
 
+select_count(doc) ->
+    ["Tests select_count/2 for sample data."];
 select_count(Config) ->
     {ok, 2} = mysqlerl:select_count(?config(db_ref, Config),
                                     "SELECT username FROM user").
 
+select_next(doc) ->
+    ["Tests select/3 with next parameter."];
 select_next(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     {selected, ?COLS, Rows} = mysqlerl:select(?config(db_ref, Config),
                                               next, 1),
     [{"bjc", _}] = Rows.
 
+select_absolute(doc) ->
+    ["Tests select/3 with absolute position."];
 select_absolute(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:next(?config(db_ref, Config)),
@@ -214,6 +226,8 @@ select_absolute(Config) ->
                                               {absolute, 1}, 1),
     [{"bjc", _}] = Rows.
 
+select_relative(doc) ->
+    ["Tests select/3 with relative position."];
 select_relative(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:next(?config(db_ref, Config)),
@@ -221,59 +235,81 @@ select_relative(Config) ->
                                               {relative, 1}, 1),
     [{"siobain", _}] = Rows.
 
+first(doc) ->
+    ["Tests first/1 from initial result set."];
 first(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     {selected, ?COLS, Rows} = mysqlerl:first(?config(db_ref, Config)),
     [{"bjc", _}] = Rows.
 
+last(doc) ->
+    ["Tests last/1 from initial result set."];
 last(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     {selected, ?COLS, Rows} = mysqlerl:last(?config(db_ref, Config)),
     [{"siobain", _}] = Rows.
 
+next(doc) ->
+    ["Tests next/1 from initial result set."];
 next(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     {selected, ?COLS, Rows} = mysqlerl:next(?config(db_ref, Config)),
     [{"bjc", _}] = Rows.
 
+next_after_first(doc) ->
+    ["Tests next/1 after calling first."];
 next_after_first(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:first(?config(db_ref, Config)),
     {selected, ?COLS, [{"siobain", _}]} = mysqlerl:next(?config(db_ref, Config)).
 
+next_after_last(doc) ->
+    ["Tests next/1 after calling last."];
 next_after_last(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:last(?config(db_ref, Config)),
     {selected, ?COLS, []} = mysqlerl:next(?config(db_ref, Config)).
 
+next_all(doc) ->
+    ["Tests traversing all results with next/1."];
 next_all(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:next(?config(db_ref, Config)),
     {selected, ?COLS, [{"siobain", _}]} = mysqlerl:next(?config(db_ref, Config)),
     {selected, ?COLS, []} = mysqlerl:next(?config(db_ref, Config)).
 
+prev(doc) ->
+    ["Tests prev/1 after calling last/1."];
 prev(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:last(?config(db_ref, Config)),
     {selected, ?COLS, Rows} = mysqlerl:prev(?config(db_ref, Config)),
     [{"bjc", _}] = Rows.
 
+prev_all(doc) ->
+    ["Tests traversing all results with prev/1."];
 prev_all(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:last(?config(db_ref, Config)),
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:prev(?config(db_ref, Config)),
     {selected, ?COLS, []} = mysqlerl:prev(?config(db_ref, Config)).
 
+prev_after_first(doc) ->
+    ["Tests prev/1 after calling first/1."];
 prev_after_first(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:first(?config(db_ref, Config)),
     {selected, ?COLS, []} = mysqlerl:prev(?config(db_ref, Config)).
 
+prev_after_last(doc) ->
+    ["Tests prev/1 after calling last/1."];
 prev_after_last(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:last(?config(db_ref, Config)),
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:prev(?config(db_ref, Config)).
 
+next_prev_next(doc) ->
+    ["Tests that calling next/1, then prev/1, then next/1 moves the cursor properly."];
 next_prev_next(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:first(?config(db_ref, Config)),
@@ -281,6 +317,8 @@ next_prev_next(Config) ->
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:prev(?config(db_ref, Config)),
     {selected, ?COLS, [{"siobain", _}]} = mysqlerl:next(?config(db_ref, Config)).
 
+prev_next_prev(doc) ->
+    ["Tests that calling prev/1, then next/1, then prev/1 moves the cursor properly."];
 prev_next_prev(Config) ->
     mysqlerl:select_count(?config(db_ref, Config), ?Q),
     mysqlerl:last(?config(db_ref, Config)),
@@ -288,26 +326,40 @@ prev_next_prev(Config) ->
     {selected, ?COLS, [{"siobain", _}]} = mysqlerl:next(?config(db_ref, Config)),
     {selected, ?COLS, [{"bjc", _}]} = mysqlerl:prev(?config(db_ref, Config)).
 
+commit(doc) ->
+    ["Tests that commit/1 with commit commits pending transactions."];
 commit(Config) ->
     {updated, 0} = mysqlerl:commit(?config(db_ref, Config), commit),
     {skip, "Not implemented"}.
 
+rollback(doc) ->
+    ["Tests that rollback/1 with rollback undoes pending transactions."];
 rollback(Config) ->
     {updated, 0} = mysqlerl:commit(?config(db_ref, Config), rollback),
     {skip, "Not implemented"}.
 
+select_no_results(doc) ->
+    ["Tests that select/3 fails properly when no results exist."];
 select_no_results(Config) ->
     {error, result_set_does_not_exist} = mysqlerl:select(?config(db_ref, Config),
                                                          next, 1).
 
+first_no_results(doc) ->
+    ["Tests that first/1 fails properly when no results exist."];
 first_no_results(Config) ->
     {error, result_set_does_not_exist} = mysqlerl:first(?config(db_ref, Config)).
 
+last_no_results(doc) ->
+    ["Tests that last/1 fails properly when no results exist."];
 last_no_results(Config) ->
     {error, result_set_does_not_exist} = mysqlerl:last(?config(db_ref, Config)).
 
+next_no_results(doc) ->
+    ["Tests that next/1 fails properly when no results exist."];
 next_no_results(Config) ->
     {error, result_set_does_not_exist} = mysqlerl:next(?config(db_ref, Config)).
 
+prev_no_results(doc) ->
+    ["Tests that prev/1 fails properly when no results exist."];
 prev_no_results(Config) ->
     {error, result_set_does_not_exist} = mysqlerl:prev(?config(db_ref, Config)).

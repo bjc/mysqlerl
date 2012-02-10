@@ -117,8 +117,12 @@ all() ->
 %% Comment = term()
 %% @end
 %%--------------------------------------------------------------------
+app_starts(doc) ->
+    ["Tests application:start/1."];
 app_starts(_Config) ->
     ok = application:start(mysqlerl).
 
+app_stops(doc) ->
+    ["Tests application:stop/1."];
 app_stops(_Config) ->
     ok = application:stop(mysqlerl).
