@@ -32,14 +32,8 @@ suite() ->
 %% @end
 %%--------------------------------------------------------------------
 init_per_suite(Config) ->
-    DBInfo  = ct:get_config(db_info),
-    DataDir = ?config(data_dir, Config),
-    User    = ?config(username, DBInfo),
-    Pass    = ?config(password, DBInfo),
-    Name    = ?config(name, DBInfo),
-
-    mysqlerl_test_lib:create_db(User, Pass, Name),
-    mysqlerl_test_lib:create_table(User, Pass, Name, DataDir),
+    mysqlerl_test_lib:create_db(Config),
+    mysqlerl_test_lib:create_table(Config),
     ok = application:start(mysqlerl),
     Config.
 
@@ -48,14 +42,9 @@ init_per_suite(Config) ->
 %% Config0 = Config1 = [tuple()]
 %% @end
 %%--------------------------------------------------------------------
-end_per_suite(_Config) ->
-    DBInfo = ct:get_config(db_info),
-    User   = ?config(username, DBInfo),
-    Pass   = ?config(password, DBInfo),
-    Name   = ?config(name, DBInfo),
-
+end_per_suite(Config) ->
     ok = application:stop(mysqlerl),
-    mysqlerl_test_lib:drop_db(User, Pass, Name).
+    mysqlerl_test_lib:drop_db(Config).
 
 %%--------------------------------------------------------------------
 %% @spec init_per_group(GroupName, Config0) ->

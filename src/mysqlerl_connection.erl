@@ -19,7 +19,7 @@ start_link(Owner, Host, Port, Database, User, Password, Options) ->
                                     User, Password, Options], []).
 
 stop(Pid) ->
-    case (catch gen_server:call(Pid, stop)) of
+    case catch gen_server:call(Pid, stop) of
         {'EXIT', _} -> ok;
         Other       -> Other
     end.
@@ -27,20 +27,26 @@ stop(Pid) ->
 init([Owner, Host, Port, Database, User, Password, Options]) ->
     process_flag(trap_exit, true),
     erlang:monitor(process, Owner),
-    Ref = open_port({spawn, helper()}, [{packet, 4}, binary]),
-    ConnectArgs = #sql_connect{host     = Host,
-                               port     = Port,
-                               database = Database,
-                               user     = User,
-                               password = Password,
-                               options  = Options},
-    case send_port_cmd(Ref, ConnectArgs, ?CONNECT_TIMEOUT) of
-        {data, ok} ->
-            {ok, #state{port = Ref, owner = Owner}};
-        {data, {error, Error}} ->
-            {stop, Error};
-        {'EXIT', Ref, Reason} ->
-            {stop, {port_closed, Reason}}
+    case os:find_executable("mysqlerl", helper_dir()) of
+        false ->
+            {stop, port_program_executable_not_found};
+        Helper ->
+            Ref = open_port({spawn, Helper},
+                            [{packet, 4}, binary, exit_status]),
+            ConnectArgs = #sql_connect{host     = Host,
+                                       port     = Port,
+                                       database = Database,
+                                       user     = User,
+                                       password = Password,
+                                       options  = Options},
+            case catch send_port_cmd(Ref, ConnectArgs, ?CONNECT_TIMEOUT) of
+                {data, ok} ->
+                    {ok, #state{port = Ref, owner = Owner}};
+                {data, {error, Error}} ->
+                    {stop, Error};
+                {'EXIT', Ref, Reason} ->
+                    {stop, {port_closed, Reason}}
+            end
     end.
 
 terminate(Reason, _State) ->
@@ -58,7 +64,7 @@ handle_call(Request, From, #state{owner = Owner} = State)
 handle_call(stop, _From, State) ->
     {stop, normal, State};
 handle_call({Req, Timeout}, From, State) ->
-    case send_port_cmd(State#state.port, Req, Timeout) of
+    case catch send_port_cmd(State#state.port, Req, Timeout) of
         {data, Res} ->
             {reply, Res, State};
         {'EXIT', _Ref, Reason} ->
@@ -76,17 +82,23 @@ handle_call({Req, Timeout}, From, State) ->
 handle_cast(_Request, State) ->
     {noreply, State}.
 
-handle_info({'DOWN', _Monitor, process, _Reason, _PID, Reason},
-            #state{owner = PID} = State) ->
-    io:format("DEBUG: owner ~p shut down: ~p.~n", [PID, Reason]),
-    {stop, normal, State}.
+handle_info({'EXIT', Ref, Reason}, #state{port = Ref} = State) ->
+    {stop, Reason, State};
+handle_info({'DOWN', _Ref, _Type, _PID, normal}, State) ->
+    {stop, normal, State};
+handle_info({'DOWN', _Ref, _Type, _PID, timeout}, State) ->
+    {stop, normal, State};
+handle_info({'DOWN', _Ref, _Type, _PID, shutdown}, State) ->
+    {stop, normal, State};
+handle_info({'DOWN', _Ref, _Type, PID, Reason}, State) ->
+    {stop, {stopped, {'EXIT', PID, Reason}}, State}.
 
-helper() ->
+helper_dir() ->
     case code:priv_dir(mysqlerl) of
         PrivDir when is_list(PrivDir) -> ok;
         {error, bad_name} -> PrivDir = filename:join(["..", "priv"])
     end,
-    filename:nativename(filename:join([PrivDir, "bin", "mysqlerl"])).
+    filename:nativename(filename:join([PrivDir, "bin"])).
 
 send_port_cmd(Ref, Request, Timeout) ->
     io:format("DEBUG: Sending request: ~p~n", [Request]),

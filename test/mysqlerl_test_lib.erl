@@ -9,6 +9,8 @@
 
 -compile(export_all).
 
+-include_lib("common_test/include/ct.hrl").
+
 mysql_cmd(undefined, undefined) ->
     "mysql";
 mysql_cmd(User, undefined) ->
@@ -18,16 +20,39 @@ mysql_cmd(undefined, Pass) ->
 mysql_cmd(User, Pass) ->
     io_lib:format("mysql -u'~s' -p'~s'", [User, Pass]).
 
+create_db(_Config) ->
+    DBInfo = ct:get_config(db_info),
+    User   = ?config(username, DBInfo),
+    Pass   = ?config(password, DBInfo),
+    Name   = ?config(name, DBInfo),
+    create_db(User, Pass, Name).
+
+
 create_db(User, Pass, Name) ->
     drop_db(User, Pass, Name),
     SQL = io_lib:format("CREATE DATABASE ~s", [Name]),
     CMD = mysql_cmd(User, Pass),
     os:cmd(io_lib:format("echo '~s' | ~s", [SQL, CMD])).
 
+drop_db(_Config) ->
+    DBInfo = ct:get_config(db_info),
+    User   = ?config(username, DBInfo),
+    Pass   = ?config(password, DBInfo),
+    Name   = ?config(name, DBInfo),
+    drop_db(User, Pass, Name).
+
 drop_db(User, Pass, Name) ->
     SQL = io_lib:format("DROP DATABASE IF EXISTS ~s", [Name]),
     CMD = mysql_cmd(User, Pass),
     os:cmd(io_lib:format("echo '~s' | ~s", [SQL, CMD])).
+
+create_table(Config) ->
+    DBInfo  = ct:get_config(db_info),
+    User    = ?config(username, DBInfo),
+    Pass    = ?config(password, DBInfo),
+    Name    = ?config(name, DBInfo),
+    DataDir = ?config(data_dir, Config),
+    create_table(User, Pass, Name, DataDir).
 
 create_table(User, Pass, Name, DataDir) ->
     CMD = mysql_cmd(User, Pass),
